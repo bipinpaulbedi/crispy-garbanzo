@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MonkeyInterpreter", "MonkeyInterpreter\MonkeyInterpreter.fsproj", "{38AA440D-E935-4F1F-9388-4272005827DD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{38AA440D-E935-4F1F-9388-4272005827DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{38AA440D-E935-4F1F-9388-4272005827DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{38AA440D-E935-4F1F-9388-4272005827DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{38AA440D-E935-4F1F-9388-4272005827DD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
