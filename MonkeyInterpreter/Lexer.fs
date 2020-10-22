@@ -10,14 +10,7 @@ module Lexer =
               Position: int
               ReadPosition: int
               Ch: Option<char> }
-
-        let private PeekChar l =
-            match l with
-            | { ReadPosition = pos } when pos >= l.Input.Length ->
-                Option.None
-            | _ ->
-                Some l.Input.[l.ReadPosition]
-                
+            
         let private ReadChar l =
             match l with
             | { ReadPosition = pos } when pos >= l.Input.Length ->
@@ -46,26 +39,26 @@ module Lexer =
             | Some '\r' -> ReadChar(currentLexer) |> SkipWhitespace
             | _ -> currentLexer
         
-        let rec private ReadNumber accumulator currentLexer previousLexor =
+        let rec private ReadNumber accumulator currentLexer previousLexer =
             match currentLexer.Ch with
             | Some x ->
                 match x with
                 | x when Char.IsNumber(x) -> ReadNumber (accumulator.ToString() + x.ToString()) (ReadChar(currentLexer)) currentLexer
-                | _ -> (accumulator, previousLexor)
-            | _ -> (accumulator, previousLexor)
+                | _ -> (accumulator, previousLexer)
+            | _ -> (accumulator, previousLexer)
             
-        let rec private ReadIdentifier accumulator currentLexer previousLexor =
+        let rec private ReadIdentifier accumulator currentLexer previousLexer =
             match currentLexer.Ch with
             | Some x ->
                 match x with
                 | x when Char.IsLetter(x) -> ReadIdentifier (accumulator.ToString() + x.ToString()) (ReadChar(currentLexer)) currentLexer
                 | '_' -> ReadIdentifier (accumulator.ToString() + "_") (ReadChar(currentLexer)) currentLexer
-                | _ -> (accumulator, previousLexor)
-            | _ -> (accumulator, previousLexor)
+                | _ -> (accumulator, previousLexer)
+            | _ -> (accumulator, previousLexer)
               
         let private NextTokenEval currentLexer =
             match currentLexer.Ch with
-            | Some '=' when (PeekChar currentLexer) = Some '=' ->
+            | Some '=' when (ReadChar currentLexer).Ch = Some '=' ->
                 ({ Type = TokenType.EQ
                    Literal = Some "==" }, ReadChar(currentLexer))
             | Some '=' ->
@@ -77,7 +70,7 @@ module Lexer =
             | Some '-' ->
                 ({ Type = TokenType.MINUS
                    Literal = Some "-" }, currentLexer)
-            | Some '!' when (PeekChar currentLexer) = Some '=' ->
+            | Some '!' when (ReadChar currentLexer).Ch = Some '=' ->
                 ({ Type = TokenType.NOTEQ
                    Literal = Some "!=" }, ReadChar(currentLexer))
             | Some '!' ->
