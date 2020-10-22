@@ -107,12 +107,12 @@ module LexerTests =
 
         let l = NewLexer(input)
 
-        let rec ExtractNextToken (t, l) acc =
-            let acc' = acc @ [ t ]
-            match t with
-            | { Type = TokenType.EOF; Literal = None } -> acc'
-            | _ -> ExtractNextToken (NextToken l) acc'
+        let rec ProcessLexer (token, lexer) accumulator =
+            let accumulator' = accumulator @ [ token ]
+            match token with
+            | { Type = TokenType.EOF; Literal = None } -> accumulator'
+            | _ -> ProcessLexer (NextToken lexer) accumulator'
 
-        let result = ExtractNextToken (NextToken l) []
+        let result = ProcessLexer (NextToken l) []
 
         result |> should equal expected
