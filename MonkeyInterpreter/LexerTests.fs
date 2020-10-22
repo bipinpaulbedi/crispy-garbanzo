@@ -107,6 +107,6 @@ module LexerTests =
 
         let lexer = input |> NewLexer
         
-        let result = lexer |> NextToken |> ProcessLexer []
+        let result = lexer |> NextToken |> ProcessLexerToTokens []
 
         result |> should equal expected

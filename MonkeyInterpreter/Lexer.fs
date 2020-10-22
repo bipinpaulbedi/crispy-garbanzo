@@ -132,8 +132,8 @@ module Lexer =
            let (t, activeLexer) = NextTokenEval (SkipWhitespace lexer)
            (t , activeLexer |> ReadChar)
            
-        let rec ProcessLexer accumulator (token, lexer) =
+        let rec ProcessLexerToTokens accumulator (token, lexer) =
             let accumulator' = accumulator @ [ token ]
             match token with
             | { Type = TokenType.EOF; Literal = None } -> accumulator'
-            | _ -> ProcessLexer accumulator' (NextToken lexer) 
+            | _ -> ProcessLexerToTokens accumulator' (NextToken lexer) 

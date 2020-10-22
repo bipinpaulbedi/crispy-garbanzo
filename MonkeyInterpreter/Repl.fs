@@ -12,7 +12,7 @@ module Repl =
          | "quit" -> Environment.Exit 0
          | command -> NewLexer(command)
                    |> NextToken
-                   |> ProcessLexer []
+                   |> ProcessLexerToTokens []
                    |> printfn "%A";
          
          start()
