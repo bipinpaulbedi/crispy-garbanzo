@@ -31,8 +31,8 @@ module Lexer =
                   ReadPosition = l.ReadPosition + 1
                   Ch = Some l.Input.[l.ReadPosition] }
 
-        let NewLexer inp =
-            { Input = inp
+        let NewLexer input =
+            { Input = input
               Position = 0
               ReadPosition = 0
               Ch = Option.None }
@@ -131,3 +131,9 @@ module Lexer =
         let NextToken lexer =
            let (t, activeLexer) = NextTokenEval (SkipWhitespace lexer)
            (t , activeLexer |> ReadChar)
+           
+        let rec ProcessLexer accumulator (token, lexer) =
+            let accumulator' = accumulator @ [ token ]
+            match token with
+            | { Type = TokenType.EOF; Literal = None } -> accumulator'
+            | _ -> ProcessLexer accumulator' (NextToken lexer) 

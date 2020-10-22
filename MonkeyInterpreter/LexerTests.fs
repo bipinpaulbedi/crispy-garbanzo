@@ -105,14 +105,8 @@ module LexerTests =
               { Type = TokenType.SEMICOLON; Literal = Some ";"};
               { Type = TokenType.EOF; Literal = None} ]
 
-        let l = NewLexer(input)
-
-        let rec ProcessLexer (token, lexer) accumulator =
-            let accumulator' = accumulator @ [ token ]
-            match token with
-            | { Type = TokenType.EOF; Literal = None } -> accumulator'
-            | _ -> ProcessLexer (NextToken lexer) accumulator'
-
-        let result = ProcessLexer (NextToken l) []
+        let lexer = input |> NewLexer
+        
+        let result = lexer |> NextToken |> ProcessLexer []
 
         result |> should equal expected

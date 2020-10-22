@@ -1,5 +1,11 @@
 namespace MonkeyInterpreter
 
+open MonkeyInterpreter
+
 module Program =
     [<EntryPoint>]
-    let main _ = 0
+    
+    printfn "Hello! This is Monkey programming language"
+    printfn "Feel free to type commands"
+    
+    Repl.start()
