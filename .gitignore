@@ -1,10 +1,5 @@
 bin/
 obj/
 /packages/
-/.idea/.idea.MonkeyInterpreter/.idea/contentModel.xml
-/.idea/.idea.MonkeyInterpreter/.idea/encodings.xml
-/.idea/.idea.MonkeyInterpreter/.idea/indexLayout.xml
-/.idea/.idea.MonkeyInterpreter/.idea/modules.xml
-/.idea/.idea.MonkeyInterpreter/.idea/projectSettingsUpdater.xml
-/.idea/.idea.MonkeyInterpreter/riderModule.iml
-/.idea/.idea.MonkeyInterpreter/.idea/vcs.xml
+/.idea/
+/MonkeyInterpreter.sln.DotSettings.user
