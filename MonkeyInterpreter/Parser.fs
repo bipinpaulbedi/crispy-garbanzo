@@ -1,10 +1,9 @@
 namespace MonkeyInterpreter
-
-open MonkeyInterpreter.Lexer
-open MonkeyInterpreter.Token
-
 module Parser =
     
+    open Lexer
+    open Token
+
     [<RequireQualifiedAccess>]
     type PrecedenceType =
         | UNKNOWN
@@ -15,7 +14,7 @@ module Parser =
         | PRODUCT
         | PREFIX
         | CALL
-   
+        
     let LookupPrecedence =
         function
         | TokenType.EQ -> PrecedenceType.EQUALS
@@ -34,11 +33,10 @@ module Parser =
            Errors: Option<string[]>
            CurrentToken:  Option<Token>
            PeekToken: Option<Token> }
-    
+         
     let NextToken parser =
         let (token, lexer) = NextToken parser.Lexer
         { parser with Lexer = lexer; CurrentToken = parser.PeekToken; PeekToken = Some token }
-        
         
     let NewParser lexer =
         {

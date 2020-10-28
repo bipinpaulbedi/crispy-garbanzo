@@ -12,7 +12,7 @@ module AST =
     
     type INode =
         abstract member LiteralFromToken : unit -> string
-        
+    
     type Program =
          { Statements : INode[] }
          
@@ -30,11 +30,13 @@ module AST =
         interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
         override this.ToString() = this.Value
-    
+    type Expression = Identifier
+    type Statement = Identifier
+            
     type LetStatement =
          { Token : Token
            Name: Identifier
-           Value: Option<Identifier> }
+           Value: Option<Expression> }
          
          interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
@@ -47,7 +49,7 @@ module AST =
                 
     type ReturnStatement =
          { Token : Token
-           ReturnValue: Option<Identifier> }
+           ReturnValue: Option<Expression> }
         
          interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral   
@@ -58,7 +60,7 @@ module AST =
     
     type ExpressionStatement =
          { Token : Token
-           Expression: Option<Identifier> }
+           Expression: Option<Expression> }
          
          interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral   
@@ -69,7 +71,7 @@ module AST =
     
     type BlockStatement =
          { Token : Token
-           Statements: INode[] }
+           Statements: Statement[] }
          
          interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
@@ -97,7 +99,7 @@ module AST =
     type PrefixExpression =
         { Token : Token
           Operator: string
-          Right: Identifier }
+          Right: Expression }
         
         interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
@@ -105,9 +107,9 @@ module AST =
     
     type InfixExpression =
         { Token : Token
-          Left: Identifier
+          Left: Expression
           Operator: string
-          Right: Identifier }
+          Right: Expression }
         
         interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
@@ -115,7 +117,7 @@ module AST =
     
     type IfExpression =
         { Token : Token
-          Condition: Identifier
+          Condition: Expression
           Consequence: BlockStatement
           Alternative: Option<BlockStatement> }
         
@@ -143,8 +145,8 @@ module AST =
     
     type CallExpression =
         { Token : Token
-          Function: Identifier
-          Arguments: Identifier[]}
+          Function: Expression
+          Arguments: Expression[]}
         
         interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
