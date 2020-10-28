@@ -9,8 +9,12 @@
 
     <ItemGroup>
         <Compile Include="Token.fs" />
+        <Compile Include="AST.fs" />
+        <Compile Include="ASTTests.fs" />
         <Compile Include="Lexer.fs" />
         <Compile Include="LexerTests.fs" />
+        <Compile Include="Parser.fs" />
+        <Compile Include="ParserTests.fs" />
         <Compile Include="Repl.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
