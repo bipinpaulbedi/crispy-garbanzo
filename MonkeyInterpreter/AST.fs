@@ -21,7 +21,7 @@ module AST =
          override this.ToString() =
             this.Statements
             |> Array.map (fun this -> this.ToString())
-            |> String.concat "/n"
+            |> String.concat ""
     
     type Identifier =
         { Token: Token
@@ -30,13 +30,11 @@ module AST =
         interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
         override this.ToString() = this.Value
-    type Expression = Identifier
-    type Statement = Identifier
             
     type LetStatement =
          { Token : Token
            Name: Identifier
-           Value: Option<Expression> }
+           Value: Option<INode> }
          
          interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
@@ -49,7 +47,7 @@ module AST =
                 
     type ReturnStatement =
          { Token : Token
-           ReturnValue: Option<Expression> }
+           ReturnValue: Option<INode> }
         
          interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral   
@@ -60,7 +58,7 @@ module AST =
     
     type ExpressionStatement =
          { Token : Token
-           Expression: Option<Expression> }
+           Expression: Option<INode> }
          
          interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral   
@@ -71,18 +69,18 @@ module AST =
     
     type BlockStatement =
          { Token : Token
-           Statements: Statement[] }
+           Statements: INode[] }
          
          interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
          override this.ToString() =
             this.Statements
             |> Array.map (fun this -> this.ToString())
-            |> String.concat "/n"
+            |> String.concat ""
     
     type Boolean =
         { Token : Token
-          Value: bool }
+          BoolValue: bool }
         
         interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
@@ -90,7 +88,7 @@ module AST =
     
     type IntegerLiteral =
         { Token : Token
-          Value: int64 }
+          IntValue: int64 }
         
         interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
@@ -99,7 +97,7 @@ module AST =
     type PrefixExpression =
         { Token : Token
           Operator: string
-          Right: Expression }
+          Right: INode }
         
         interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
@@ -107,9 +105,9 @@ module AST =
     
     type InfixExpression =
         { Token : Token
-          Left: Expression
+          Left: INode
           Operator: string
-          Right: Expression }
+          Right: INode }
         
         interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
@@ -117,7 +115,7 @@ module AST =
     
     type IfExpression =
         { Token : Token
-          Condition: Expression
+          Condition: INode
           Consequence: BlockStatement
           Alternative: Option<BlockStatement> }
         
@@ -145,8 +143,8 @@ module AST =
     
     type CallExpression =
         { Token : Token
-          Function: Expression
-          Arguments: Expression[]}
+          Function: INode
+          Arguments: INode[] }
         
         interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
