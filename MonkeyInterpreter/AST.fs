@@ -69,12 +69,13 @@ module AST =
     
     type BlockStatement =
          { Token : Token
-           Statements: INode[] }
+           Statements: Option<INode>[] }
          
          interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
          override this.ToString() =
             this.Statements
+            |> Array.map (fun this -> this |> Option.defaultValue Unchecked.defaultof<INode>)
             |> Array.map (fun this -> this.ToString())
             |> String.concat ""
     
