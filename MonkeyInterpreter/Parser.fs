@@ -82,30 +82,35 @@ module Parser =
                         | true -> true, parser |> NextToken
                         | _ -> false, parser
         | None -> false, parser
+    
+    let rec ParseInfExpression exp pre parser =
+        match parser.CurrentToken with
+            | Some v ->
+                if parser |> PeekTokenIs TokenType.SEMICOLON || pre > (parser |> PeekPrecedence) then
+                    exp, parser |> NextToken
+                else match parser.InfixParseFns.TryFind(v.Type) with
+                        | Some v ->
+                            let exp', parser' = v.Invoke (exp, parser |> NextToken)
+                            parser' |> ParseInfExpression exp' pre
+                        | _ -> exp, parser |> NextToken
+            | _ -> exp, parser
+        
 
     let ParseExpression pre parser =
         let prefix =
             match parser.CurrentToken with
             | Some v ->
-                match parser.PrefixParseFns.TryFind v.Type with
-                | Some v -> v
-                | _ -> failwith "no prefix parse function for %s found" pre
+                match parser.PrefixParseFns.TryFind(v.Type) with
+                    | Some v -> v
+                    | _ -> failwith "no prefix parse function for %s found" pre
             | _ -> failwith "missing current token -> ParseExpression -> Prefix"
         let exp, parser' = parser |> prefix.Invoke
-        match parser'.CurrentToken with
-            | Some v ->
-                if parser' |> PeekTokenIs TokenType.SEMICOLON && pre < (parser' |> PeekPrecedence) then
-                    match parser'.InfixParseFns.TryFind v.Type with
-                    | Some v -> v.Invoke (exp, parser' |> NextToken) 
-                    | _ -> exp, parser'
-                else
-                    exp, parser'
-            | _ -> exp, parser'
+        parser' |> ParseInfExpression exp pre 
         
-
+        
     let ParseIdentifier parser =
         match parser.CurrentToken with
-        | Some v -> (Some({ Token = v; Value = v.ToString() } :> INode), parser)
+        | Some v -> (Some({ Token = v; Value = v.Literal.Value.ToString() } :> INode), parser)
         | _ -> None, parser
 
     let ParsePrefixExpression parser =
@@ -157,7 +162,7 @@ module Parser =
         let valid', parser'' = match valid with
                                 | true -> parser' |> ExpectPeek TokenType.ASSIGN
                                 | false -> valid, parser'
-        let parser''' = match valid with
+        let parser''' = match valid' with
                             | true -> parser'' |> NextToken
                             | false -> parser''
                             
@@ -182,24 +187,27 @@ module Parser =
                 Expression = exp } :> INode), parser' |> NextToken
         
     
-    let ParseStatment parser =
-        match parser.CurrentToken with
-             | Some t -> match t.Type with
-                            | TokenType.LET -> parser |> ParseLetStatement
-                            | TokenType.RETURN -> parser |>  ParseReturnStatement
-                            | _ -> parser |> ParseExpressionStatement
-             | _ -> None, parser
+    let ParseStatement parser =
+        let rtn, parser' = match parser.CurrentToken with
+                             | Some t -> match t.Type with
+                                            | TokenType.LET -> parser |> ParseLetStatement
+                                            | TokenType.RETURN -> parser |>  ParseReturnStatement
+                                            | _ -> parser |> ParseExpressionStatement
+                             | _ -> None, parser
+        
+        match parser' |> CurrentTokenIs TokenType.SEMICOLON with
+             | true -> rtn, parser' |> NextToken
+             | false -> rtn, parser'
 
     let rec ParseStatements accumulator statement parser =
             let accumulator' = accumulator @ [ statement ]
-            match statement with
-                | Some v when (box v :?> Identifier).Token.Type = TokenType.RBRACE -> accumulator', parser
-                | Some v when (box v :?> Identifier).Token.Type = TokenType.RBRACE -> accumulator', parser
-                | _ -> let nextStatement, parser' = parser |> ParseStatment
+            match (parser |> CurrentTokenIs TokenType.RBRACE || parser |> CurrentTokenIs TokenType.EOF)  with
+                | true -> accumulator', parser
+                | _ -> let nextStatement, parser' = parser |> ParseStatement
                        ParseStatements accumulator' nextStatement parser'
     
     let ParseBlockStatement parser =
-        let statement, parser' = parser |> NextToken |> ParseStatment
+        let statement, parser' = parser |> NextToken |> ParseStatement
         let Statements, parser'' = ParseStatements [] statement parser'
         match parser.CurrentToken with
                 | Some v ->
@@ -322,3 +330,16 @@ module Parser =
         |> RegisterInfix TokenType.LPAREN (InfixParseFn ParseCallExpression)
         |> NextToken
         |> NextToken
+    
+    let rec ParseProgStatements accumulator stmt parser =
+        let accumulator' = match stmt with
+                                | Some a -> accumulator @ [ a ]
+                                | _ -> accumulator
+        match parser |> CurrentTokenIs TokenType.EOF with
+            | true -> accumulator', parser
+            | _ -> let nextStatement, parser' = parser |> ParseStatement
+                   ParseProgStatements accumulator' nextStatement parser'
+                           
+    let ParseProgram parser =
+            let stmts, parser' = parser |> ParseProgStatements [] None 
+            { Statements = stmts |> Array.ofList }, parser'

@@ -33,7 +33,7 @@ module AST =
             
     type LetStatement =
          { Token : Token
-           Name: Identifier
+           Name : Identifier
            Value: Option<INode> }
          
          interface INode with
