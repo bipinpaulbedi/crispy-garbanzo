@@ -117,7 +117,7 @@ module Parser =
         let exp = match parser.CurrentToken with
                     | Some v ->
                             { Token = v
-                              Operator = v.ToString()
+                              Operator = v.Literal.Value
                               Right = Unchecked.defaultof<INode>} 
                     | _ -> failwith "missing current token -> ParsePrefixExpression"
                     

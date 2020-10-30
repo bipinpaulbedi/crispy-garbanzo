@@ -102,7 +102,7 @@ module AST =
         
         interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
-        override this.ToString() = String.Format("({0} {1})", this.Operator, this.Right)
+        override this.ToString() = String.Format("({0}{1})", this.Operator, this.Right)
     
     type InfixExpression =
         { Token : Token

@@ -40,7 +40,13 @@ module ParserTests =
     
     let TestExpressionStatement exp (inp:INode) =
         inp.LiteralFromToken() |> should equal (exp.ToString())
-        (Some (inp :?> ExpressionStatement).Expression.Value) |> TestLiteralExpression exp |> ignore    
+        (Some (inp :?> ExpressionStatement).Expression.Value) |> TestLiteralExpression exp |> ignore
+    
+    let TestPrefixExpressionStatement (operator,right) (inp:INode) =
+        inp.ToString() |> should equal (String.Format("({0}{1})", operator, right.ToString().ToLower()))
+        (inp :?> PrefixExpression).Operator |> should equal operator
+        (Some (inp :?> PrefixExpression).Right) |> TestLiteralExpression right
+        
             
     [<Theory>]
     [<InlineData("let x = 5;", "x", 5)>]
@@ -87,3 +93,18 @@ module ParserTests =
         
         prg.Statements.Length |> should equal 1
         (prg.Statements.[0] :?> ExpressionStatement) |> TestExpressionStatement 5 |> ignore
+    
+    [<Theory>]
+    [<InlineData("!5;", "!", 5)>]
+    [<InlineData("-15;", "-", 15)>]
+    [<InlineData("!foobar;", "!", "foobar")>]
+    [<InlineData("-foobar;", "-", "foobar")>]
+    [<InlineData("!true;", "!", true)>]
+    [<InlineData("!false;", "!", false)>]
+    let ``Test Parsing Prefix Expression`` inp operator right =
+        let prg, _ = NewLexer inp
+                            |> NewParser
+                            |> ParseProgram
+        
+        prg.Statements.Length |> should equal 1
+        (prg.Statements.[0] :?> ExpressionStatement).Expression.Value |> TestPrefixExpressionStatement (operator, right) |> ignore
