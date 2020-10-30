@@ -37,18 +37,53 @@ module ParserTests =
                                 | :? bool as b -> input |> TestBooleanLiteral b
                                 | _ -> 1 |> should equal 1
             | _ -> 1 |> should equal 1
-        
+    
+    let TestExpressionStatement exp (inp:INode) =
+        inp.LiteralFromToken() |> should equal (exp.ToString())
+        (Some (inp :?> ExpressionStatement).Expression.Value) |> TestLiteralExpression exp |> ignore    
             
     [<Theory>]
     [<InlineData("let x = 5;", "x", 5)>]
     [<InlineData("let y = true;", "y", true)>]
     [<InlineData("let foobar = y;", "foobar", "y")>]  
     let ``Test Let Statement`` inp expIdentifier expValue =
-        let p, parser' = NewLexer inp
+        let prg, _ = NewLexer inp
                             |> NewParser
                             |> ParseProgram
         
-        p.Statements.Length |> should greaterThan 0
-        p.Statements.[0] |> TestLetStatement expIdentifier |> ignore
-        (p.Statements.[0] :?> LetStatement).Value |> TestLiteralExpression expValue |> ignore
+        prg.Statements.Length |> should greaterThan 0
+        prg.Statements.[0] |> TestLetStatement expIdentifier |> ignore
+        (prg.Statements.[0] :?> LetStatement).Value |> TestLiteralExpression expValue |> ignore
+    
+    [<Theory>]
+    [<InlineData("return 5;", 5)>]
+    [<InlineData("return true;", true)>]
+    [<InlineData("return foobar;", "foobar")>]  
+    let ``Test Return Statement`` inp expValue =
+        let prg, _ = NewLexer inp
+                            |> NewParser
+                            |> ParseProgram
+        
+        prg.Statements.Length |> should greaterThan 0
+        prg.Statements.[0].LiteralFromToken() |> should equal "return"
+        (prg.Statements.[0] :?> ReturnStatement).ReturnValue |> TestLiteralExpression expValue |> ignore
+        
+    [<Theory>]
+    [<InlineData("foobar;")>]
+    let ``Test Identifier Expression`` inp =
+        let prg, _ = NewLexer inp
+                            |> NewParser
+                            |> ParseProgram
+        
+        prg.Statements.Length |> should equal 1
+        (prg.Statements.[0] :?> ExpressionStatement) |> TestExpressionStatement "foobar" |> ignore
 
+    [<Theory>]
+    [<InlineData("5;")>]
+    let ``Test Integer Literal Expression`` inp =
+        let prg, _ = NewLexer inp
+                            |> NewParser
+                            |> ParseProgram
+        
+        prg.Statements.Length |> should equal 1
+        (prg.Statements.[0] :?> ExpressionStatement) |> TestExpressionStatement 5 |> ignore
