@@ -1,10 +1,5 @@
 namespace MonkeyInterpreter
 
-open System
-open System.Net.NetworkInformation
-open MonkeyInterpreter
-open MonkeyInterpreter
-
 module Parser =
 
     open Lexer
@@ -13,14 +8,14 @@ module Parser =
 
     [<RequireQualifiedAccess>]
     type PrecedenceType =
-        | UNKNOWN
-        | LOWEST
-        | EQUALS
-        | LESSGREATER
-        | SUM
-        | PRODUCT
-        | PREFIX
-        | CALL
+        | UNKNOWN = 0
+        | LOWEST = 1
+        | EQUALS = 2
+        | LESSGREATER = 3
+        | SUM = 4
+        | PRODUCT = 5
+        | PREFIX = 6
+        | CALL = 7
     let LookupPrecedence =
         function
         | TokenType.EQ -> PrecedenceType.EQUALS
@@ -32,7 +27,7 @@ module Parser =
         | TokenType.SLASH -> PrecedenceType.PRODUCT
         | TokenType.ASTERISK -> PrecedenceType.PRODUCT
         | TokenType.LPAREN -> PrecedenceType.CALL
-        | _ -> PrecedenceType.UNKNOWN
+        | _ -> PrecedenceType.LOWEST
         
     
     type PrefixParseFn = delegate of Parser -> Option<INode> * Parser
@@ -78,7 +73,7 @@ module Parser =
     
     let ExpectPeek tokenType parser =
         match parser.PeekToken with
-        | Some t -> match parser |>  PeekTokenIs tokenType with
+        | Some t -> match parser |> PeekTokenIs tokenType with
                         | true -> true, parser |> NextToken
                         | _ -> false, parser
         | None -> false, parser
@@ -89,10 +84,16 @@ module Parser =
                 if parser |> PeekTokenIs TokenType.SEMICOLON || pre > (parser |> PeekPrecedence) then
                     exp, parser |> NextToken
                 else match parser.InfixParseFns.TryFind(v.Type) with
-                        | Some v ->
-                            let exp', parser' = v.Invoke (exp, parser |> NextToken)
+                        | Some inf ->
+                            let exp', parser' = inf.Invoke (exp, parser)
                             parser' |> ParseInfExpression exp' pre
-                        | _ -> exp, parser |> NextToken
+                        | _ ->
+                                    let parser'' = parser |> NextToken
+                                    match parser''.InfixParseFns.TryFind(parser''.CurrentToken.Value.Type) with
+                                    | Some inf ->
+                                        let exp', parser''' = inf.Invoke (exp, parser'')
+                                        parser''' |> ParseInfExpression exp' pre
+                                    | _ -> exp, parser |> NextToken
             | _ -> exp, parser
         
 
@@ -101,7 +102,7 @@ module Parser =
             match parser.CurrentToken with
             | Some v ->
                 match parser.PrefixParseFns.TryFind(v.Type) with
-                    | Some v -> v
+                    | Some fn -> fn
                     | _ -> failwith "no prefix parse function for %s found" pre
             | _ -> failwith "missing current token -> ParseExpression -> Prefix"
         let exp, parser' = parser |> prefix.Invoke
@@ -147,15 +148,18 @@ module Parser =
         | _ -> None, parser
 
     let ParseGroupedExpression parser =
-        let nodeOption, parse' = parser
+        let nodeOption, parser' = parser
                                     |> NextToken
                                     |> ParseExpression PrecedenceType.LOWEST
         
-        let valid, parser'' = parser |> ExpectPeek TokenType.RPAREN
+        let valid, parser'' = parser' |> ExpectPeek TokenType.RPAREN
         
         match valid with
         | true -> nodeOption, parser''
-        | false -> None, parse'
+        | false -> let valid', parser''' = parser'' |> ExpectPeek TokenType.EOF
+                   match valid' with
+                        | true -> nodeOption, parser'''
+                        | false -> nodeOption, parser'''
         
     let ParseLetStatement parser =
         let valid, parser' = parser |> ExpectPeek TokenType.IDENT
@@ -265,9 +269,9 @@ module Parser =
                     | _ -> prms, parser'
        
     let ParseFunctionLiteral parser =
-        let valid, parser' = parser |> ExpectPeek TokenType.LPAREN
+        let _, parser' = parser |> ExpectPeek TokenType.LPAREN
         let prms, parser'' = parser' |> ParseFunctionParameters
-        let valid, parser''' = parser''|> ExpectPeek TokenType.LBRACE
+        let _, parser''' = parser'' |> ExpectPeek TokenType.LBRACE
         let body, parser'''' = parser''' |> ParseBlockStatement
         Some ({ Token = parser.CurrentToken.Value
                 Parameters =  prms

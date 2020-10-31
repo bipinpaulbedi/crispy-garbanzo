@@ -47,6 +47,12 @@ module ParserTests =
         (inp :?> PrefixExpression).Operator |> should equal operator
         (Some (inp :?> PrefixExpression).Right) |> TestLiteralExpression right
         
+    let TestInfixExpressionStatement (left, operator,right) (inp:INode) =
+        inp.ToString() |> should equal (String.Format("({0}{1}{2})",left.ToString().ToLower(), operator, right.ToString().ToLower()))
+        (inp :?> InfixExpression).Operator |> should equal operator
+        (Some (inp :?> InfixExpression).Right) |> TestLiteralExpression right
+        (Some (inp :?> InfixExpression).Left) |> TestLiteralExpression left
+        
             
     [<Theory>]
     [<InlineData("let x = 5;", "x", 5)>]
@@ -108,3 +114,66 @@ module ParserTests =
         
         prg.Statements.Length |> should equal 1
         (prg.Statements.[0] :?> ExpressionStatement).Expression.Value |> TestPrefixExpressionStatement (operator, right) |> ignore
+    
+    [<Theory>]
+    [<InlineData("5 + 5;", 5, "+", 5)>]
+    [<InlineData("5 - 5;", 5, "-", 5)>]
+    [<InlineData("5 * 5;", 5, "*", 5)>]
+    [<InlineData("5 / 5;", 5, "/", 5)>]
+    [<InlineData("5 > 5;", 5, ">", 5)>]
+    [<InlineData("5 < 5;", 5, "<", 5)>]
+    [<InlineData("5 == 5;", 5, "==", 5)>]
+    [<InlineData("5 != 5;", 5, "!=", 5)>]
+    [<InlineData("foobar + barfoo;", "foobar", "+", "barfoo")>]
+    [<InlineData("foobar - barfoo;", "foobar", "-", "barfoo")>]
+    [<InlineData("foobar * barfoo;", "foobar", "*", "barfoo")>]
+    [<InlineData("foobar / barfoo;", "foobar", "/", "barfoo")>]
+    [<InlineData("foobar > barfoo;", "foobar", ">", "barfoo")>]
+    [<InlineData("foobar < barfoo;", "foobar", "<", "barfoo")>]
+    [<InlineData("foobar == barfoo;", "foobar", "==", "barfoo")>]
+    [<InlineData("foobar != barfoo;", "foobar", "!=", "barfoo")>]
+    [<InlineData("true == true", true, "==", true)>]
+    [<InlineData("true != false", true, "!=", false)>]
+    [<InlineData("false == false", false, "==", false)>]
+    let ``Test Parsing Infix Expression`` inp left operator right =
+        let prg, _ = NewLexer inp
+                            |> NewParser
+                            |> ParseProgram
+        
+        prg.Statements.Length |> should equal 1
+        (prg.Statements.[0] :?> ExpressionStatement).Expression.Value |> TestInfixExpressionStatement (left, operator, right) |> ignore
+        
+    [<Theory>]
+    [<InlineData("-a * b", "((-a)*b)")>]
+    [<InlineData("!-a", "(!(-a))")>]
+    [<InlineData("a + b + c", "((a+b)+c)")>]
+    [<InlineData("a + b - c", "((a+b)-c)")>]
+    [<InlineData("a * b * c", "((a*b)*c)")>]
+    [<InlineData("a * b / c", "((a*b)/c)")>]
+    [<InlineData("a * (b / c)", "(a*(b/c))")>]
+    [<InlineData("a + b / c", "(a+(b/c))")>]
+    [<InlineData("a + b * c + d / e - f", "(((a+(b*c))+(d/e))-f)")>]
+    [<InlineData("3 + 4; -5 * 5", "(3+4)((-5)*5)")>]
+    [<InlineData("5 > 4 == 3 < 4", "((5>4)==(3<4))")>]
+    [<InlineData("5 < 4 != 3 > 4", "((5<4)!=(3>4))")>]
+    [<InlineData("3 + 4 * 5 == 3 * 1 + 4 * 5", "((3+(4*5))==((3*1)+(4*5)))")>]
+    [<InlineData("true", "true")>]
+    [<InlineData("false", "false")>]
+    [<InlineData("3 > 5 == false", "((3>5)==false)")>]
+    [<InlineData("3 < 5 == true", "((3<5)==true)")>]
+    [<InlineData("1 + (2 + 3) + 4", "((1+(2+3))+4)")>]
+    [<InlineData("(5 + 5) * 2", "((5+5)*2)")>]
+    [<InlineData("2 / (5 + 5)", "(2/(5+5))")>]
+    [<InlineData("(5 + 5) * 2 * (5 + 5)", "(((5+5)*2)*(5+5))")>]
+    [<InlineData("-(5 + 5)", "(-(5+5))")>]
+    [<InlineData("!(true == true)", "(!(true==true))")>]
+    [<InlineData("a + add(b * c) + d", "((a+add((b*c)))+d)")>]
+    [<InlineData("add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))", "add(a,b,1,(2*3),(4+5),add(6,(7*8)))")>]
+    [<InlineData("add(a + b + c * d / f + g)", "add((((a+b)+((c*d)/f))+g))")>]
+    let ``Test Operator Precedence Parsing`` inp exp =
+        let prg, _ = NewLexer inp
+                            |> NewParser
+                            |> ParseProgram
+        
+        prg.Statements.Length |> should equal 1
+        prg.ToString() |> should equal exp

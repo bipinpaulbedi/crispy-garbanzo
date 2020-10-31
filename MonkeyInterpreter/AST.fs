@@ -20,7 +20,7 @@ module AST =
             member this.LiteralFromToken() = this.Statements.[0].LiteralFromToken()
          override this.ToString() =
             this.Statements
-            |> Array.map (fun this -> this.ToString())
+            |> Array.map (fun t -> t.ToString())
             |> String.concat ""
     
     type Identifier =
@@ -64,8 +64,8 @@ module AST =
             member this.LiteralFromToken() = this.Token |> TokenLiteral   
          override this.ToString() =
                 match this.Expression with
-                | Some expression -> String.Format("{0} {1};", (this :> INode).LiteralFromToken(), expression)
-                | None -> String.Format("{0} ;", (this :> INode).LiteralFromToken())
+                | Some expression -> String.Format("{0}", expression)
+                | None -> String.Format("{0}", (this :> INode).LiteralFromToken())
     
     type BlockStatement =
          { Token : Token
@@ -112,7 +112,7 @@ module AST =
         
         interface INode with
             member this.LiteralFromToken() = this.Token |> TokenLiteral
-        override this.ToString() = String.Format("({0} {1} {2})", this.Left, this.Operator, this.Right)
+        override this.ToString() = String.Format("({0}{1}{2})", this.Left, this.Operator, this.Right)
     
     type IfExpression =
         { Token : Token
@@ -140,7 +140,7 @@ module AST =
                 |> Array.map (fun param -> param.ToString())
                 |> String.concat ", "
             
-            String.Format("{0}({1}){2}", (this :> INode).LiteralFromToken(), prms, this.Body)
+            String.Format("{0} ({1}) {2}", (this :> INode).LiteralFromToken(), prms, this.Body)
     
     type CallExpression =
         { Token : Token
@@ -155,4 +155,4 @@ module AST =
                 |> Array.map (fun param -> param.ToString())
                 |> String.concat ", "
             
-            String.Format("{0}({1})", this.Function, args)
+            String.Format("{0} ({1})", this.Function, args)
