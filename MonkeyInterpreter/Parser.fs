@@ -289,17 +289,16 @@ module Parser =
         let accumulator' = match arg with
                                 | Some a -> accumulator @ [ a ]
                                 | _ -> accumulator
-        match parser |> PeekTokenIs TokenType.COMMA with
-            | true -> let nextArg, parser' = parser |> NextToken |> NextToken |> ParseExpression PrecedenceType.LOWEST
+        match parser |> CurrentTokenIs TokenType.COMMA with
+            | true -> let nextArg, parser' = parser |> NextToken |> ParseExpression PrecedenceType.LOWEST
                       ParseCallArgs accumulator' nextArg parser'
             | _ -> accumulator' |> Array.ofList , parser
             
     let ParseCallArg parser : INode[] * Parser =
-        let parser' = parser |> NextToken
         match parser |> PeekTokenIs TokenType.RPAREN with
-            | false -> let arg, parser'' = parser' |> NextToken |> ParseExpression PrecedenceType.LOWEST
-                       ParseCallArgs [] arg parser''
-            | true -> [] |> Array.ofList, parser'
+            | false -> let arg, parser' = parser |> NextToken |> ParseExpression PrecedenceType.LOWEST
+                       ParseCallArgs [] arg parser'
+            | true -> [] |> Array.ofList, parser |> NextToken
     
     let ParseCallExpression (fn:Option<INode>) parser =
         let args, (parser':Parser) = parser |> ParseCallArg
