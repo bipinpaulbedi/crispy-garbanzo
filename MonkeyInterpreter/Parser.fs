@@ -232,12 +232,10 @@ module Parser =
         
         let cons, parser'''' = parser''' |> ParseBlockStatement
         
-        let parser''''' = match parser'''' |> PeekTokenIs TokenType.ELSE with
+        let alt, parser''''' = match parser'''' |> CurrentTokenIs TokenType.ELSE with
                                 | true -> match parser'''' |> ExpectPeek TokenType.LBRACE with
-                                                | _, p -> p
-                                | false -> parser''''
-        
-        let alt, parser'''''' = parser''''' |> ParseBlockStatement
+                                                | _, p -> p |> ParseBlockStatement
+                                | false -> None, parser''''
         
         let altOption = match alt with
                          | Some a -> Some (a :?> BlockStatement)
@@ -247,7 +245,7 @@ module Parser =
                 Condition =  con.Value
                 Consequence = cons.Value :?> BlockStatement
                 Alternative = altOption
-               } :> INode), parser''''''
+               } :> INode), parser'''''
         
     let rec ParseFunctionParametersRec accumulator param parser =
             let accumulator' = accumulator @ [ param ]
@@ -260,18 +258,16 @@ module Parser =
         
     let ParseFunctionParameters parser =
         let parser' = parser |> NextToken
-        let prms = Unchecked.defaultof<Identifier[]>
-        
         match parser |> PeekTokenIs TokenType.RPAREN with
                     | false -> let firstParam = { Token = parser'.CurrentToken.Value
                                                   Value = parser'.CurrentToken.Value.Literal.Value }
                                ParseFunctionParametersRec [] firstParam parser'
-                    | _ -> prms, parser'
+                    | _ -> Unchecked.defaultof<Identifier[]>, parser'
        
     let ParseFunctionLiteral parser =
         let _, parser' = parser |> ExpectPeek TokenType.LPAREN
         let prms, parser'' = parser' |> ParseFunctionParameters
-        let _, parser''' = parser'' |> ExpectPeek TokenType.LBRACE
+        let _, parser''' = parser'' |> NextToken |> ExpectPeek TokenType.LBRACE
         let body, parser'''' = parser''' |> ParseBlockStatement
         Some ({ Token = parser.CurrentToken.Value
                 Parameters =  prms

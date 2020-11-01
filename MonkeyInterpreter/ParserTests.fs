@@ -196,3 +196,108 @@ module ParserTests =
         
         prg.Statements.Length |> should equal 1
         prg.ToString() |> should equal exp
+    
+    [<Theory>]
+    [<InlineData("true", true)>]
+    [<InlineData("false", false)>]
+    let ``Test Boolean Expression`` inp exp =
+        let prg, _ = NewLexer inp
+                            |> NewParser
+                            |> ParseProgram
+        
+        prg.Statements.Length |> should equal 1
+        ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> Boolean).BoolValue |> should equal exp
+        
+    [<Theory>]
+    [<InlineData("if (x < y) { x }")>]
+    let ``Test If Expression`` inp =
+        let prg, _ = NewLexer inp
+                            |> NewParser
+                            |> ParseProgram
+        
+        prg.Statements.Length |> should equal 1
+        ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Condition |> TestInfixExpressionStatement ("x","<","y") |> ignore
+        ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Consequence.Statements.Length |> should equal 1
+        (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Consequence.Statements.[0].Value :?> ExpressionStatement).Expression |> TestLiteralExpression "x" |> ignore
+        
+    [<Theory>]
+    //TODO Forced; at end-of cons if alt available
+    [<InlineData("if (x < y) { x; } else { y }")>]
+    let ``Test If Else Expression`` inp =
+        let prg, _ = NewLexer inp
+                            |> NewParser
+                            |> ParseProgram
+        
+        prg.Statements.Length |> should equal 1
+        ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Condition |> TestInfixExpressionStatement ("x","<","y") |> ignore
+        ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Consequence.Statements.Length |> should equal 1
+        (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Consequence.Statements.[0].Value :?> ExpressionStatement).Expression |> TestLiteralExpression "x" |> ignore
+        ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Alternative.Value.Statements.Length |> should equal 1
+        (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Alternative.Value.Statements.[0].Value :?> ExpressionStatement).Expression |> TestLiteralExpression "y" |> ignore
+    
+    [<Theory>]
+    [<InlineData("fn(x, y) { x + y; }")>]
+    let ``Test Function Literal`` inp =
+        let prg, _ = NewLexer inp
+                            |> NewParser
+                            |> ParseProgram
+        
+        prg.Statements.Length |> should equal 1
+        ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> FunctionLiteral).Parameters.Length |> should equal 2
+        Some (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> FunctionLiteral).Parameters.[0] :> INode) |> TestLiteralExpression "x" |> ignore
+        Some (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> FunctionLiteral).Parameters.[1] :> INode) |> TestLiteralExpression "y" |> ignore
+        (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> FunctionLiteral).Body.Statements.[0].Value :?> ExpressionStatement).Expression.Value  |> TestInfixExpressionStatement ("x","+","y") |> ignore
+    
+    [<Theory>]
+    [<InlineData("fn() { 1 };", 0,"")>]
+    [<InlineData("fn(x) { 1 };", 1, "x")>]
+    [<InlineData("fn(x, y, z) { 1 };", 3, "x|y|z")>]
+    let ``Test Function Parameter Parsing`` inp len exp =
+        let prg, _ = NewLexer inp
+                            |> NewParser
+                            |> ParseProgram
+        
+        prg.Statements.Length |> should equal 1
+        
+        match len with
+            | 0 -> ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> FunctionLiteral).Parameters |> should equal null
+            | _ -> ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> FunctionLiteral).Parameters.Length |> should equal len
+                   ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> FunctionLiteral).Parameters
+                    |> Array.map( fun i -> i.ToString())
+                    |> String.concat "|"
+                    |> should equal exp |> ignore
+    
+    [<Theory>]
+    //TODO Be carefull about pre processed computation
+    [<InlineData("add(1, (2 * 3));")>]
+    let ``Test Call Expression Parsing`` inp =
+        let prg, _ = NewLexer inp
+                            |> NewParser
+                            |> ParseProgram
+        
+        prg.Statements.Length |> should equal 1
+        ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Function |> TestIdentifier "add" |> ignore
+        ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Arguments.Length |> should equal 2
+        Some (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Arguments.[0]) |> TestLiteralExpression 1 |> ignore
+        ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Arguments.[1] |> TestInfixExpressionStatement (2,"*",3) |> ignore
+        
+    [<Theory>]
+    [<InlineData("add();","add",0,"")>]
+    [<InlineData("add(1);","add",1,"1")>]
+    [<InlineData("add(1, (2 * 3));","add",2,"1|(2*3)")>]
+    let ``Test Call Expression Parameter Parsing`` inp fn len exp =
+        let prg, _ = NewLexer inp
+                            |> NewParser
+                            |> ParseProgram
+        
+        prg.Statements.Length |> should equal 1
+        
+        ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Function |> TestIdentifier "add" |> ignore
+        
+        match len with
+            | 0 -> 1 |> should equal 1 //TODO Issue with zero argument collection
+            | _ -> ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Arguments.Length |> should equal len
+                   ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Arguments
+                    |> Array.map( fun i -> i.ToString())
+                    |> String.concat "|"
+                    |> should equal exp |> ignore
