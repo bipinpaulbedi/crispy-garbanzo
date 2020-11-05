@@ -8,6 +8,7 @@ module Token =
         | EOF
         | IDENT
         | INT
+        | STRING
         | ASSIGN
         | PLUS
         | MINUS
@@ -20,10 +21,13 @@ module Token =
         | NOTEQ
         | COMMA
         | SEMICOLON
+        | COLON
         | LPAREN
         | RPAREN
         | LBRACE
         | RBRACE
+        | LBRACKET
+        | RBRACKET
         | FUNCTION
         | LET
         | TRUE

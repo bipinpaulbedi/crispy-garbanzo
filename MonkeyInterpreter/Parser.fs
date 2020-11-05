@@ -1,8 +1,11 @@
 namespace MonkeyInterpreter
 
+open System.Collections.Generic
+
 module Parser =
 
     open Lexer
+    open System
     open Token
     open AST
 
@@ -16,6 +19,8 @@ module Parser =
         | PRODUCT = 5
         | PREFIX = 6
         | CALL = 7
+        | INDEX = 8
+        
     let LookupPrecedence =
         function
         | TokenType.EQ -> PrecedenceType.EQUALS
@@ -27,290 +32,303 @@ module Parser =
         | TokenType.SLASH -> PrecedenceType.PRODUCT
         | TokenType.ASTERISK -> PrecedenceType.PRODUCT
         | TokenType.LPAREN -> PrecedenceType.CALL
+        | TokenType.LBRACKET -> PrecedenceType.INDEX
         | _ -> PrecedenceType.LOWEST
         
     
-    type PrefixParseFn = delegate of Parser -> Option<INode> * Parser
-    and InfixParseFn = delegate of Option<INode> * Parser -> Option<INode> * Parser
+    type PrefixParseFn = delegate of Parser -> Expression * Parser
+    and InfixParseFn = delegate of Expression * Parser -> Expression * Parser
     and Parser =
         { Lexer: Lexer
-          CurrentToken: Option<Token>
-          PeekToken: Option<Token>
+          Error: string list
+          CurrentToken: Token
+          PeekToken: Token
           PrefixParseFns: Map<TokenType, PrefixParseFn>
           InfixParseFns: Map<TokenType, InfixParseFn> }
         
-    let CurrentPrecedence parser = parser.CurrentToken.Value.Type |> LookupPrecedence
+    let private CurrentPrecedence parser = parser.CurrentToken.Type |> LookupPrecedence
 
-    let NextToken parser =
-        let (token, lexer) = NextToken parser.Lexer
+    let private NextToken parser =
+        let (token, lexer) = parser.Lexer |> NextToken 
         { parser with
               Lexer = lexer
               CurrentToken = parser.PeekToken
-              PeekToken = Some token }
+              PeekToken = token }
 
-    let RegisterPrefix tokenType fn parser =
+    let private RegisterPrefix tokenType fn parser =
         { parser with
               PrefixParseFns = parser.PrefixParseFns.Add(tokenType, fn) }
 
-    let RegisterInfix tokenType fn parser =
+    let private RegisterInfix tokenType fn parser =
         { parser with
               InfixParseFns = parser.InfixParseFns.Add(tokenType, fn) }
 
-    let PeekTokenIs tokenType parser =
-        match parser.PeekToken with
-        | Some s when s.Type = tokenType -> true
-        | _ -> false
+    let private PeekTokenIs tokenType parser = parser.PeekToken.Type = tokenType
 
-    let CurrentTokenIs tokenType parser =
-        match parser.CurrentToken with
-        | Some s when s.Type = tokenType -> true
-        | _ -> false
+    let private CurrentTokenIs tokenType parser = parser.CurrentToken.Type = tokenType
 
-    let PeekPrecedence parser =
-        match parser.PeekToken with
-        | Some t -> LookupPrecedence t.Type
-        | None -> PrecedenceType.LOWEST
+    let private PeekPrecedence parser = parser.PeekToken.Type |> LookupPrecedence
     
-    let ExpectPeek tokenType parser =
-        match parser.PeekToken with
-        | Some t -> match parser |> PeekTokenIs tokenType with
-                        | true -> true, parser |> NextToken
-                        | _ -> false, parser
-        | None -> false, parser
+    let private ExpectPeek tokenType parser =
+        match parser |> PeekTokenIs tokenType with
+            | true -> true, parser |> NextToken
+            | _ -> false, { parser with
+                                Error = parser.Error @ [ String.Format("Expected next token to be {0}, got {1} instead",
+                                                                      tokenType, parser.PeekToken.Type ) ] }
     
-    let rec ParseInfExpression exp pre parser =
-        match parser.CurrentToken with
-            | Some v ->
-                if parser |> PeekTokenIs TokenType.SEMICOLON || pre > (parser |> PeekPrecedence) then
-                    exp, parser |> NextToken
-                else match parser.InfixParseFns.TryFind(v.Type) with
-                        | Some inf ->
-                            let exp', parser' = inf.Invoke (exp, parser)
-                            parser' |> ParseInfExpression exp' pre
-                        | _ ->
-                                    let parser'' = parser |> NextToken
-                                    match parser''.InfixParseFns.TryFind(parser''.CurrentToken.Value.Type) with
-                                    | Some inf ->
-                                        let exp', parser''' = inf.Invoke (exp, parser'')
-                                        parser''' |> ParseInfExpression exp' pre
-                                    | _ -> exp, parser |> NextToken
-            | _ -> exp, parser
-        
+    let private NoPrefixParseFunctionError (tokenType:TokenType) parser =
+        { parser with
+            Error = parser.Error @ [ String.Format("No prefix parse function for {0} found",
+                                                                      tokenType)]}
 
-    let ParseExpression pre parser =
-        let prefix =
-            match parser.CurrentToken with
-            | Some v ->
-                match parser.PrefixParseFns.TryFind(v.Type) with
-                    | Some fn -> fn
-                    | _ -> failwith "no prefix parse function for %s found" pre
-            | _ -> failwith "missing current token -> ParseExpression -> Prefix"
-        let exp, parser' = parser |> prefix.Invoke
-        parser' |> ParseInfExpression exp pre 
-        
-        
-    let ParseIdentifier parser =
-        match parser.CurrentToken with
-        | Some v -> (Some({ Token = v; Value = v.Literal.Value.ToString() } :> INode), parser)
-        | _ -> None, parser
+    
+    let rec private ParseInfExpressionRec exp precedence parser =
+                match parser |> PeekTokenIs TokenType.SEMICOLON || precedence >= (parser |> PeekPrecedence) with
+                | true -> exp, parser
+                | _ ->  match parser.InfixParseFns.TryFind(parser.CurrentToken.Type) with
+                                | Some inf -> let exp', parser' = inf.Invoke (exp, parser |> NextToken)
+                                              parser' |> ParseInfExpressionRec exp' precedence
+                                | _ -> exp, parser
 
-    let ParsePrefixExpression parser =
-        let exp = match parser.CurrentToken with
-                    | Some v ->
-                            { Token = v
-                              Operator = v.Literal.Value
-                              Right = Unchecked.defaultof<INode>} 
-                    | _ -> failwith "missing current token -> ParsePrefixExpression"
-                    
-        let (nodeOption, parser') = parser |> NextToken |> ParseExpression PrecedenceType.PREFIX
+    let private ParseExpression precedence parser =
+        match parser.PrefixParseFns.TryFind(parser.CurrentToken.Type) with
+            | Some fn -> let exp, parser' = parser |> fn.Invoke
+                         parser' |> ParseInfExpressionRec exp precedence
+            | _ -> Unchecked.defaultof<Expression>, parser |> NoPrefixParseFunctionError parser.CurrentToken.Type
+        
+    let private ParseIdentifier parser =
+        { Token = parser.CurrentToken; Value = parser.CurrentToken.Literal |> Option.defaultValue "" } :> INode, parser
 
-        match nodeOption with
-           | Some np -> Some ({ exp with Right = np } :> INode), parser'
-           | _ -> failwith "missing right expression for parse prefix expression"
+    let private ParsePrefixExpression parser =
+        let exp = { Token = parser.CurrentToken
+                    Operator = parser.CurrentToken.Literal |> Option.defaultValue ""
+                    Right = Unchecked.defaultof<Expression>} 
+        let (rightExpression, parser') = parser |> NextToken |> ParseExpression PrecedenceType.PREFIX
+        { exp with Right = rightExpression } :> INode, parser'
                                    
-    let ParseIntegerLiteral parser =
-        match parser.CurrentToken with
-        | Some v ->
-            Some
-                ({ Token = v
-                   IntValue =
-                       match v.Literal with
-                       | Some i -> i |> int64
-                       | _ -> failwith "missing integer literal" } :> INode) , parser
-        | _ -> None, parser
+    let private ParseIntegerLiteral parser =
+         { Token = parser.CurrentToken
+           IntValue = match parser.CurrentToken.Literal with
+                        | Some i -> i |> int64
+                        | _ -> failwith "missing integer literal" } :> INode , parser
 
-    let ParseBoolean parser =
-        match parser.CurrentToken with
-        | Some v ->
-            Some
-                ({ Token = v
-                   BoolValue = parser |> CurrentTokenIs TokenType.TRUE } :> INode), parser
-        | _ -> None, parser
+    let private ParseBoolean parser = { Token = parser.CurrentToken
+                                        BoolValue = parser |> CurrentTokenIs TokenType.TRUE } :> INode, parser
 
-    let ParseGroupedExpression parser =
-        let nodeOption, parser' = parser
+
+    let private ParseGroupedExpression parser =
+        let expression, parser' = parser
                                     |> NextToken
                                     |> ParseExpression PrecedenceType.LOWEST
         
         let valid, parser'' = parser' |> ExpectPeek TokenType.RPAREN
         
         match valid with
-        | true -> nodeOption, parser''
-        | false -> let valid', parser''' = parser'' |> ExpectPeek TokenType.EOF
-                   match valid' with
-                        | true -> nodeOption, parser'''
-                        | false -> nodeOption, parser'''
+        | true -> expression, parser''
+        | false -> Unchecked.defaultof<Expression>, parser''
         
-    let ParseLetStatement parser =
+    let private ParseLetStatement parser =
         let valid, parser' = parser |> ExpectPeek TokenType.IDENT
+        
         let valid', parser'' = match valid with
                                 | true -> parser' |> ExpectPeek TokenType.ASSIGN
                                 | false -> valid, parser'
+                                
         let parser''' = match valid' with
                             | true -> parser'' |> NextToken
                             | false -> parser''
                             
         let stmt, parser'''' = parser''' |> ParseExpression PrecedenceType.LOWEST
         
-        Some
-            ({ Token = parser.CurrentToken.Value
-               Name = { Token = parser'.CurrentToken.Value
-                        Value = parser'.CurrentToken.Value.Literal.Value }
-               Value = stmt } :> INode), parser'''' |> NextToken
-    
-    let ParseReturnStatement parser =
-        let rv, parser' = parser |> NextToken |> ParseExpression PrecedenceType.LOWEST
         
-        Some ({ Token = parser.CurrentToken.Value
-                ReturnValue = rv } :> INode), parser' |> NextToken
+        { Token = parser.CurrentToken
+          Name = { Token = parser'.CurrentToken
+                   Value = parser'.CurrentToken.Literal |> Option.defaultValue "" }
+          Value = Some stmt } :> INode, parser''''
     
-    let ParseExpressionStatement parser =
+    let private ParseReturnStatement parser =
+        let returnValue, parser' = parser |> NextToken |> ParseExpression PrecedenceType.LOWEST
+        
+        { Token = parser.CurrentToken
+          ReturnValue = Some returnValue } :> INode, parser'
+    
+    let private ParseExpressionStatement parser =
         let exp, parser' = parser |> ParseExpression PrecedenceType.LOWEST
         
-        Some ({ Token = parser.CurrentToken.Value
-                Expression = exp } :> INode), parser' |> NextToken
-        
+        { Token = parser.CurrentToken
+          Expression = Some exp } :> INode, parser'
     
-    let ParseStatement parser =
-        let rtn, parser' = match parser.CurrentToken with
-                             | Some t -> match t.Type with
-                                            | TokenType.LET -> parser |> ParseLetStatement
-                                            | TokenType.RETURN -> parser |>  ParseReturnStatement
-                                            | _ -> parser |> ParseExpressionStatement
-                             | _ -> None, parser
+    let private ParseStatement parser =
+        let rtn, parser' = match parser.CurrentToken.Type with
+                                | TokenType.LET -> parser |> ParseLetStatement
+                                | TokenType.RETURN -> parser |>  ParseReturnStatement
+                                | _ -> parser |> ParseExpressionStatement
         
         match parser' |> CurrentTokenIs TokenType.SEMICOLON with
              | true -> rtn, parser' |> NextToken
              | false -> rtn, parser'
 
-    let rec ParseStatements accumulator statement parser =
-            let accumulator' = accumulator @ [ statement ]
+    let rec private ParseBlockStatementRec accumulator statement parser =
+            let accumulator' = match statement with
+                                | Some stmt -> accumulator @ [ stmt ]
+                                | None -> accumulator
             match (parser |> CurrentTokenIs TokenType.RBRACE || parser |> CurrentTokenIs TokenType.EOF)  with
                 | true -> accumulator', parser
                 | _ -> let nextStatement, parser' = parser |> ParseStatement
-                       ParseStatements accumulator' nextStatement parser'
+                       ParseBlockStatementRec accumulator' (Some nextStatement) (parser' |> NextToken)
     
-    let ParseBlockStatement parser =
-        let statement, parser' = parser |> NextToken |> ParseStatement
-        let Statements, parser'' = ParseStatements [] statement parser'
-        match parser.CurrentToken with
-                | Some v ->
-                    Some
-                        ({ Token = v
-                           Statements = Statements |> Array.ofList } :> INode), parser'' |> NextToken
-                | _ -> failwith "Missing current token -> ParseBlockStatement"
+    let private ParseBlockStatement parser =
+        let Statements, parser'' = ParseBlockStatementRec [] None (parser |> NextToken)
+        { Token = parser.CurrentToken
+          Statements = Statements |> Array.ofList } :> INode, parser''
 
-    let ParseIfExpression parser =
+    let private ParseIfExpression parser =
         let valid, parser' = parser |> ExpectPeek TokenType.LPAREN
-        let con, parser'' = parser' |> NextToken |> ParseExpression PrecedenceType.LOWEST
+        
+        let con, parser'' = match valid with
+                                | true -> parser' |> NextToken |> ParseExpression PrecedenceType.LOWEST
+                                | _ -> Unchecked.defaultof<Expression>, parser'
                 
-        let parser''' = match parser'' |> ExpectPeek TokenType.RPAREN with
+        let cons, parser''' = match parser'' |> ExpectPeek TokenType.RPAREN with
                                 | true, p' ->
                                     match p' |> ExpectPeek TokenType.LBRACE with
-                                     | _, p'' -> p''
-                                | false, p' -> p'
+                                     | true, p'' -> p'' |> ParseBlockStatement
+                                     | false, p'' -> Unchecked.defaultof<Expression>, p''
+                                | false, p' -> Unchecked.defaultof<Expression>, p'
         
-        let cons, parser'''' = parser''' |> ParseBlockStatement
         
-        let alt, parser''''' = match parser'''' |> CurrentTokenIs TokenType.ELSE with
-                                | true -> match parser'''' |> ExpectPeek TokenType.LBRACE with
-                                                | _, p -> p |> ParseBlockStatement
-                                | false -> None, parser''''
+        let alt, parser'''' = match parser''' |> CurrentTokenIs TokenType.ELSE with
+                                | true -> let p''' = parser''' |> NextToken
+                                          match p''' |> ExpectPeek TokenType.LBRACE with
+                                            | true, p'''' -> p'''' |> ParseBlockStatement
+                                            | false, p'''' -> Unchecked.defaultof<Expression>, p''''
+                                | false -> Unchecked.defaultof<Expression>, parser'''
         
-        let altOption = match alt with
-                         | Some a -> Some (a :?> BlockStatement)
-                         | _ -> None
         
-        Some ({ Token = parser.CurrentToken.Value
-                Condition =  con.Value
-                Consequence = cons.Value :?> BlockStatement
-                Alternative = altOption
-               } :> INode), parser'''''
+        { Token = parser.CurrentToken
+          Condition =  con
+          Consequence = cons :?> BlockStatement
+          Alternative = Some (alt :?> BlockStatement)
+        } :> INode, parser''''
         
-    let rec ParseFunctionParametersRec accumulator param parser =
+    let rec private ParseFunctionParametersRec accumulator param parser =
             let accumulator' = accumulator @ [ param ]
             match parser |> PeekTokenIs TokenType.COMMA with
                 | true -> let parser' = parser |> NextToken |> NextToken
-                          let nextParam = { Token = parser'.CurrentToken.Value
-                                            Value = parser'.CurrentToken.Value.Literal.Value }
+                          let nextParam = { Token = parser'.CurrentToken
+                                            Value = parser'.CurrentToken.Literal |> Option.defaultValue "" }
                           ParseFunctionParametersRec accumulator' nextParam parser'
-                | _ -> accumulator' |> Array.ofList, parser
+                | _ -> match parser |> ExpectPeek(TokenType.RPAREN) with
+                        | true, parser'' -> accumulator' |> Array.ofList, parser''
+                        | false, parser'' -> Unchecked.defaultof<Identifier[]>, parser''
         
-    let ParseFunctionParameters parser =
+    let private ParseFunctionParameters parser =
         let parser' = parser |> NextToken
         match parser |> PeekTokenIs TokenType.RPAREN with
-                    | false -> let firstParam = { Token = parser'.CurrentToken.Value
-                                                  Value = parser'.CurrentToken.Value.Literal.Value }
+                    | false -> let firstParam = { Token = parser'.CurrentToken
+                                                  Value = parser'.CurrentToken.Literal |> Option.defaultValue "" }
                                ParseFunctionParametersRec [] firstParam parser'
                     | _ -> Unchecked.defaultof<Identifier[]>, parser'
        
-    let ParseFunctionLiteral parser =
-        let _, parser' = parser |> ExpectPeek TokenType.LPAREN
-        let prms, parser'' = parser' |> ParseFunctionParameters
-        let _, parser''' = parser'' |> NextToken |> ExpectPeek TokenType.LBRACE
-        let body, parser'''' = parser''' |> ParseBlockStatement
-        Some ({ Token = parser.CurrentToken.Value
-                Parameters =  prms
-                Body = body.Value :?> BlockStatement
-               } :> INode), parser''''
-    
-    let ParseInfixExpression (exp:Option<INode>) parser =
-        let exp', parser' = parser |> NextToken |> ParseExpression (parser |> CurrentPrecedence)
-        Some ({ Token = parser.CurrentToken.Value
-                Operator = parser.CurrentToken.Value.Literal.Value
-                Left = exp.Value
-                Right = exp'.Value }:> INode), parser'
-    
-    let rec ParseCallArgs accumulator (arg:Option<INode>) parser : INode[] * Parser =
-        let accumulator' = match arg with
-                                | Some a -> accumulator @ [ a ]
-                                | _ -> accumulator
-        match parser |> CurrentTokenIs TokenType.COMMA with
-            | true -> let nextArg, parser' = parser |> NextToken |> ParseExpression PrecedenceType.LOWEST
-                      ParseCallArgs accumulator' nextArg parser'
-            | _ -> accumulator' |> Array.ofList , parser
-            
-    let ParseCallArg parser : INode[] * Parser =
-        match parser |> PeekTokenIs TokenType.RPAREN with
-            | false -> let arg, parser' = parser |> NextToken |> ParseExpression PrecedenceType.LOWEST
-                       ParseCallArgs [] arg parser'
-            | true -> [] |> Array.ofList, parser |> NextToken
-    
-    let ParseCallExpression (fn:Option<INode>) parser =
-        let args, (parser':Parser) = parser |> ParseCallArg
+    let private ParseFunctionLiteral parser =
+        let valid, parser' = parser |> ExpectPeek TokenType.LPAREN
+        let fnParams, parser'' = match valid with
+                                    | true -> parser' |> ParseFunctionParameters
+                                    | false -> Unchecked.defaultof<Identifier[]>, parser'
+        let valid', parser''' = parser'' |> ExpectPeek TokenType.LBRACE
+        let body, parser'''' = match valid with
+                                    | true -> parser''' |> ParseBlockStatement
+                                    | false -> Unchecked.defaultof<INode>, parser'''
         
-        Some ({ Token = parser.CurrentToken.Value
-                Function = fn.Value
-                Arguments = args }:> INode), parser'
+        { Token = parser.CurrentToken
+          Parameters =  fnParams
+          Body = body :?> BlockStatement
+        } :> INode, parser''''
+    
+    let private ParseInfixExpression (exp:Expression) parser =
+        let exp', parser' = parser |> NextToken |> ParseExpression (parser |> CurrentPrecedence)
+        { Token = parser.CurrentToken
+          Operator = parser.CurrentToken.Literal |> Option.defaultValue ""
+          Left = exp
+          Right = exp' }:> INode, parser'
+        
+    let rec private ParseCallExpressionListRec accumulator expression endToken parser =
+        let accumulator' = accumulator @ [ expression ]
+        match parser |> PeekTokenIs TokenType.COMMA with
+            | true -> let exp, parser' = parser |> NextToken |> NextToken |> ParseExpression PrecedenceType.LOWEST
+                      ParseCallExpressionListRec accumulator' exp endToken parser'
+            | false -> match parser |> ExpectPeek endToken with
+                            | true, parser'' -> accumulator' |> Array.ofList, parser''
+                            | false, parser'' -> Unchecked.defaultof<Expression[]>, parser''
+                
+    
+    let private ParseCallExpressionList endToken parser =
+         match parser |> PeekTokenIs endToken with
+            | true -> Unchecked.defaultof<Expression[]>, parser |> NextToken
+            | false -> let exp, parser' = parser |> NextToken |> ParseExpression PrecedenceType.LOWEST
+                       ParseCallExpressionListRec [] exp endToken parser'
+    
+    let private ParseCallExpression (fn:Expression) parser =
+        let args, parser' = parser |> ParseCallExpressionList TokenType.RPAREN
+        
+        { Token = parser.CurrentToken
+          Function = fn
+          Arguments = args }:> INode, parser'
+    
+    let private ParseStringLiteral parser =
+        { Token = parser.CurrentToken
+          StringValue = parser.CurrentToken.Literal |> Option.defaultValue "" }:> INode, parser
+    
+    let private ParseArrayLiteral parser =
+        let ele, parser' = parser |> ParseCallExpressionList TokenType.RBRACKET
+        { Token = parser.CurrentToken
+          Elements = ele }:> INode, parser'
+    
+    let private ParseIndexExpression exp parser =
+        let ind, parser' = parser |> NextToken |> ParseExpression PrecedenceType.LOWEST
+        
+        let ind', parser'' = match parser' |> ExpectPeek TokenType.RBRACKET with
+                            | true, p' -> ind, p'
+                            | false, p' -> Unchecked.defaultof<Expression>, p'
+            
+        { Token = parser.CurrentToken
+          Left = exp
+          Index = ind' }:> INode, parser''
+        
+    let rec private ParseHashLiteralRec acc exp parser =
+        let acc' = match exp with
+                        | Some e -> acc @ [ e ]
+                        | _ -> acc
+        
+        match parser |> PeekTokenIs TokenType.RBRACE with
+            | true -> match parser |> ExpectPeek TokenType.RBRACE with
+                        | true, p' -> acc', p'
+                        | false, p' -> Unchecked.defaultof<(Expression * Expression) list>, p'
+            | false -> let exp, parser' = parser |> NextToken |> ParseExpression PrecedenceType.LOWEST
+                       match parser' |> ExpectPeek TokenType.COLON with
+                            | true, p'' -> let exp', parser'' = parser' |> NextToken |> ParseExpression PrecedenceType.LOWEST
+                                           match parser'' |> PeekTokenIs TokenType.RBRACE with
+                                                | true -> match parser'' |> ExpectPeek TokenType.COMMA with
+                                                            | true, p''' -> ParseHashLiteralRec acc' (Some (exp, exp')) p'''
+                                                            | false, p''' -> Unchecked.defaultof<(Expression * Expression) list>, p'''
+                                                | false -> Unchecked.defaultof<(Expression * Expression) list>, p''   
+                            | false, p'' -> Unchecked.defaultof<(Expression * Expression) list>, p''              
+    
+    let private ParseHashLiteral parser =
+        let pairs, parser' = ParseHashLiteralRec [] None parser
+        { Token = parser.CurrentToken
+          Pair = pairs |> Array.ofList }:> INode, parser'
              
     let NewParser (lexer: Lexer): Parser =
         { Lexer = lexer
-          CurrentToken = None
-          PeekToken = None
+          Error = list.Empty
+          CurrentToken = Unchecked.defaultof<Token>
+          PeekToken = Unchecked.defaultof<Token>
           PrefixParseFns = Map.empty
           InfixParseFns = Map.empty }
         |> RegisterPrefix TokenType.IDENT (PrefixParseFn ParseIdentifier)
         |> RegisterPrefix TokenType.INT (PrefixParseFn ParseIntegerLiteral)
+        |> RegisterPrefix TokenType.STRING (PrefixParseFn ParseStringLiteral)
         |> RegisterPrefix TokenType.BANG (PrefixParseFn ParsePrefixExpression)
         |> RegisterPrefix TokenType.MINUS (PrefixParseFn ParsePrefixExpression)
         |> RegisterPrefix TokenType.TRUE (PrefixParseFn ParseBoolean)
@@ -318,6 +336,8 @@ module Parser =
         |> RegisterPrefix TokenType.LPAREN (PrefixParseFn ParseGroupedExpression)
         |> RegisterPrefix TokenType.IF (PrefixParseFn ParseIfExpression)
         |> RegisterPrefix TokenType.FUNCTION (PrefixParseFn ParseFunctionLiteral)
+        |> RegisterPrefix TokenType.LBRACKET (PrefixParseFn ParseArrayLiteral)
+        |> RegisterPrefix TokenType.LBRACE (PrefixParseFn ParseHashLiteral)
         |> RegisterInfix TokenType.PLUS (InfixParseFn ParseInfixExpression)
         |> RegisterInfix TokenType.MINUS (InfixParseFn ParseInfixExpression)
         |> RegisterInfix TokenType.SLASH (InfixParseFn ParseInfixExpression)
@@ -327,18 +347,19 @@ module Parser =
         |> RegisterInfix TokenType.LT (InfixParseFn ParseInfixExpression)
         |> RegisterInfix TokenType.GT (InfixParseFn ParseInfixExpression)
         |> RegisterInfix TokenType.LPAREN (InfixParseFn ParseCallExpression)
+        |> RegisterInfix TokenType.LBRACKET (InfixParseFn ParseIndexExpression)
         |> NextToken
         |> NextToken
     
-    let rec ParseProgStatements accumulator stmt parser =
+    let rec private ParseProgramRec accumulator stmt parser =
         let accumulator' = match stmt with
                                 | Some a -> accumulator @ [ a ]
                                 | _ -> accumulator
         match parser |> CurrentTokenIs TokenType.EOF with
             | true -> accumulator', parser
             | _ -> let nextStatement, parser' = parser |> ParseStatement
-                   ParseProgStatements accumulator' nextStatement parser'
+                   ParseProgramRec accumulator' (Some nextStatement) parser'
                            
     let ParseProgram parser =
-            let stmts, parser' = parser |> ParseProgStatements [] None 
+            let stmts, parser' = parser |> ParseProgramRec [] None 
             { Statements = stmts |> Array.ofList }, parser'

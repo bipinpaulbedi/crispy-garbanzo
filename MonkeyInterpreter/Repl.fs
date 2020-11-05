@@ -10,9 +10,9 @@ module Repl =
          printf "%s" ">> "
          match Console.ReadLine() with
          | "quit" -> Environment.Exit 0
-         | command -> NewLexer(command)
-                   |> NextToken
-                   |> ProcessLexerToTokens []
-                   |> printfn "%A";
+         | command -> let (token, lexer) = NewLexer(command)
+                                           |> NextToken
+                      ConvertLexerToTokens [] (Some token, lexer)
+                      |> printfn "%A";
          
          start()

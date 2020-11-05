@@ -1,12 +1,11 @@
 namespace MonkeyInterpreter
 
-open MonkeyInterpreter.AST
-
 module ASTTests =
 
+    open AST
     open FsUnit
-    open Xunit
     open Token
+    open Xunit
 
     [<Fact>]
     let ``Test AST String`` () =

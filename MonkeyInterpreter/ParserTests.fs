@@ -12,20 +12,20 @@ module ParserTests =
     open AST
     
     let TestLetStatement exp (inp:INode) name =
-        inp.LiteralFromToken() |> should equal "let"
+        inp.TokenLiteral() |> should equal "let"
         (inp :?> LetStatement).Name.Value |> should equal exp
-        ((inp :?> LetStatement).Name :> INode).LiteralFromToken() |> should equal exp
+        ((inp :?> LetStatement).Name :> INode).TokenLiteral() |> should equal exp
     
     let TestIntegerLiteral (exp:int64) (inp:INode) =
-        inp.LiteralFromToken() |> should equal (exp.ToString())
+        inp.TokenLiteral() |> should equal (exp.ToString())
         (inp :?> IntegerLiteral).IntValue |> should equal exp
         
     let TestIdentifier exp (inp:INode) =
-        inp.LiteralFromToken() |> should equal (exp.ToString())
+        inp.TokenLiteral() |> should equal (exp.ToString())
         (inp :?> Identifier).Value |> should equal exp
     
     let TestBooleanLiteral exp (inp:INode) =
-        inp.LiteralFromToken() |> should equal (exp.ToString().ToLower())
+        inp.TokenLiteral() |> should equal (exp.ToString().ToLower())
         (inp :?> Boolean).BoolValue |> should equal exp
     
     let TestLiteralExpression (exp:Object) (inp:Option<INode>) =
@@ -39,7 +39,7 @@ module ParserTests =
             | _ -> 1 |> should equal 1
     
     let TestExpressionStatement exp (inp:INode) =
-        inp.LiteralFromToken() |> should equal (exp.ToString())
+        inp.TokenLiteral() |> should equal (exp.ToString())
         (Some (inp :?> ExpressionStatement).Expression.Value) |> TestLiteralExpression exp |> ignore
     
     let TestPrefixExpressionStatement (operator,right) (inp:INode) =
@@ -77,7 +77,7 @@ module ParserTests =
                             |> ParseProgram
         
         prg.Statements.Length |> should greaterThan 0
-        prg.Statements.[0].LiteralFromToken() |> should equal "return"
+        prg.Statements.[0].TokenLiteral() |> should equal "return"
         (prg.Statements.[0] :?> ReturnStatement).ReturnValue |> TestLiteralExpression expValue |> ignore
         
     [<Theory>]
@@ -218,7 +218,7 @@ module ParserTests =
         prg.Statements.Length |> should equal 1
         ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Condition |> TestInfixExpressionStatement ("x","<","y") |> ignore
         ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Consequence.Statements.Length |> should equal 1
-        (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Consequence.Statements.[0].Value :?> ExpressionStatement).Expression |> TestLiteralExpression "x" |> ignore
+        (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Consequence.Statements.[0] :?> ExpressionStatement).Expression |> TestLiteralExpression "x" |> ignore
         
     [<Theory>]
     //TODO Forced; at end-of cons if alt available
@@ -231,9 +231,9 @@ module ParserTests =
         prg.Statements.Length |> should equal 1
         ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Condition |> TestInfixExpressionStatement ("x","<","y") |> ignore
         ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Consequence.Statements.Length |> should equal 1
-        (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Consequence.Statements.[0].Value :?> ExpressionStatement).Expression |> TestLiteralExpression "x" |> ignore
+        (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Consequence.Statements.[0] :?> ExpressionStatement).Expression |> TestLiteralExpression "x" |> ignore
         ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Alternative.Value.Statements.Length |> should equal 1
-        (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Alternative.Value.Statements.[0].Value :?> ExpressionStatement).Expression |> TestLiteralExpression "y" |> ignore
+        (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Alternative.Value.Statements.[0] :?> ExpressionStatement).Expression |> TestLiteralExpression "y" |> ignore
     
     [<Theory>]
     [<InlineData("fn(x, y) { x + y; }")>]
@@ -246,7 +246,7 @@ module ParserTests =
         ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> FunctionLiteral).Parameters.Length |> should equal 2
         Some (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> FunctionLiteral).Parameters.[0] :> INode) |> TestLiteralExpression "x" |> ignore
         Some (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> FunctionLiteral).Parameters.[1] :> INode) |> TestLiteralExpression "y" |> ignore
-        (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> FunctionLiteral).Body.Statements.[0].Value :?> ExpressionStatement).Expression.Value  |> TestInfixExpressionStatement ("x","+","y") |> ignore
+        (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> FunctionLiteral).Body.Statements.[0] :?> ExpressionStatement).Expression.Value  |> TestInfixExpressionStatement ("x","+","y") |> ignore
     
     [<Theory>]
     [<InlineData("fn() { 1 };", 0,"")>]

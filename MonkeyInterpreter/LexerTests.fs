@@ -2,11 +2,10 @@ namespace MonkeyInterpreter
 module LexerTests =
 
     open FsUnit
-    open Xunit
-    open Token
     open Lexer
+    open Token
+    open Xunit
     
-
     [<Fact>]
     let ``Test Next Token``() =
         let input = "let five = 5;
@@ -104,9 +103,7 @@ module LexerTests =
               { Type = TokenType.INT; Literal = Some "9"};
               { Type = TokenType.SEMICOLON; Literal = Some ";"};
               { Type = TokenType.EOF; Literal = None} ]
-
-        let lexer = input |> NewLexer
-        
-        let result = lexer |> NextToken |> ProcessLexerToTokens []
-
-        result |> should equal expected
+            
+        let (token', lexer') = input |> NewLexer |> NextToken
+        ConvertLexerToTokens [] (Some token', lexer')
+        |> should equal expected

@@ -1,7 +1,5 @@
 namespace MonkeyInterpreter
 
-open System
-
 module Lexer =
     open System
     open Token
@@ -11,18 +9,18 @@ module Lexer =
               ReadPosition: int
               Ch: Option<char> }
             
-        let private ReadChar l =
-            match l with
-            | { ReadPosition = pos } when pos >= l.Input.Length ->
-                { Input = l.Input
-                  Position = l.ReadPosition
-                  ReadPosition = l.ReadPosition + 1
+        let private ReadChar lexer =
+            match lexer with
+            | { ReadPosition = pos } when pos >= lexer.Input.Length ->
+                { Input = lexer.Input
+                  Position = lexer.ReadPosition
+                  ReadPosition = lexer.ReadPosition + 1
                   Ch = Option.None }
             | _ ->
-                { Input = l.Input
-                  Position = l.ReadPosition
-                  ReadPosition = l.ReadPosition + 1
-                  Ch = Some l.Input.[l.ReadPosition] }
+                { Input = lexer.Input
+                  Position = lexer.ReadPosition
+                  ReadPosition = lexer.ReadPosition + 1
+                  Ch = Some lexer.Input.[lexer.ReadPosition] }
 
         let NewLexer input =
             { Input = input
@@ -31,102 +29,105 @@ module Lexer =
               Ch = Option.None }
             |> ReadChar
             
-        let rec private SkipWhitespace currentLexer =
-            match currentLexer.Ch with
-            | Some ' ' -> ReadChar(currentLexer) |> SkipWhitespace
-            | Some '\t' -> ReadChar(currentLexer) |> SkipWhitespace
-            | Some '\n' -> ReadChar(currentLexer) |> SkipWhitespace
-            | Some '\r' -> ReadChar(currentLexer) |> SkipWhitespace
-            | _ -> currentLexer
+        let rec private SkipWhitespaceRec lexer =
+            match lexer.Ch with
+            | Some ' ' -> ReadChar(lexer) |> SkipWhitespaceRec
+            | Some '\t' -> ReadChar(lexer) |> SkipWhitespaceRec
+            | Some '\n' -> ReadChar(lexer) |> SkipWhitespaceRec
+            | Some '\r' -> ReadChar(lexer) |> SkipWhitespaceRec
+            | _ -> lexer
         
-        let rec private ReadNumber accumulator currentLexer previousLexer =
-            match currentLexer.Ch with
-            | Some x ->
-                match x with
-                | x when Char.IsNumber(x) -> ReadNumber (accumulator.ToString() + x.ToString()) (ReadChar(currentLexer)) currentLexer
-                | _ -> (accumulator, previousLexer)
-            | _ -> (accumulator, previousLexer)
+        let rec private ReadNumberRec accumulator lexer' lexer =
+            match lexer'.Ch with
+            | Some num ->
+                match num with
+                | num when Char.IsNumber(num) -> ReadNumberRec (accumulator.ToString() + num.ToString()) (ReadChar(lexer')) lexer'
+                | _ -> (accumulator, lexer)
+            | _ -> (accumulator, lexer)
             
-        let rec private ReadIdentifier accumulator currentLexer previousLexer =
-            match currentLexer.Ch with
-            | Some x ->
-                match x with
-                | x when Char.IsLetter(x) -> ReadIdentifier (accumulator.ToString() + x.ToString()) (ReadChar(currentLexer)) currentLexer
-                | '_' -> ReadIdentifier (accumulator.ToString() + "_") (ReadChar(currentLexer)) currentLexer
-                | _ -> (accumulator, previousLexer)
-            | _ -> (accumulator, previousLexer)
+        let rec private ReadIdentifierRec accumulator lexer' lexer =
+            match lexer'.Ch with
+            | Some ch ->
+                match ch with
+                | ch when Char.IsLetter(ch) -> ReadIdentifierRec (accumulator.ToString() + ch.ToString()) (ReadChar(lexer')) lexer'
+                | '_' -> ReadIdentifierRec (accumulator.ToString() + "_") (ReadChar(lexer')) lexer'
+                | _ -> (accumulator, lexer)
+            | _ -> (accumulator, lexer)
               
-        let private NextTokenEval currentLexer =
-            match currentLexer.Ch with
-            | Some '=' when (ReadChar currentLexer).Ch = Some '=' ->
+        let private NextToken' lexer =
+            match lexer.Ch with
+            | Some '=' when (ReadChar lexer).Ch = Some '=' ->
                 ({ Type = TokenType.EQ
-                   Literal = Some "==" }, ReadChar(currentLexer))
+                   Literal = Some "==" }, ReadChar(lexer))
             | Some '=' ->
                 ({ Type = TokenType.ASSIGN
-                   Literal = Some "=" }, currentLexer)
+                   Literal = Some "=" }, lexer)
             | Some '+' ->
                 ({ Type = TokenType.PLUS
-                   Literal = Some "+" }, currentLexer)
+                   Literal = Some "+" }, lexer)
             | Some '-' ->
                 ({ Type = TokenType.MINUS
-                   Literal = Some "-" }, currentLexer)
-            | Some '!' when (ReadChar currentLexer).Ch = Some '=' ->
+                   Literal = Some "-" }, lexer)
+            | Some '!' when (ReadChar lexer).Ch = Some '=' ->
                 ({ Type = TokenType.NOTEQ
-                   Literal = Some "!=" }, ReadChar(currentLexer))
+                   Literal = Some "!=" }, ReadChar(lexer))
             | Some '!' ->
                 ({ Type = TokenType.BANG
-                   Literal = Some "!" }, currentLexer)
+                   Literal = Some "!" }, lexer)
             | Some '/' ->
                 ({ Type = TokenType.SLASH
-                   Literal = Some "/" }, currentLexer)
+                   Literal = Some "/" }, lexer)
             | Some '*' ->
                 ({ Type = TokenType.ASTERISK
-                   Literal = Some "*" }, currentLexer)
+                   Literal = Some "*" }, lexer)
             | Some '<' ->
                 ({ Type = TokenType.LT
-                   Literal = Some "<" }, currentLexer)
+                   Literal = Some "<" }, lexer)
             | Some '>' ->
                 ({ Type = TokenType.GT
-                   Literal = Some ">" }, currentLexer) 
+                   Literal = Some ">" }, lexer) 
             | Some ';' ->
                 ({ Type = TokenType.SEMICOLON
-                   Literal = Some ";" }, currentLexer)
+                   Literal = Some ";" }, lexer)
             | Some ',' ->
                 ({ Type = TokenType.COMMA
-                   Literal = Some "," }, currentLexer)
+                   Literal = Some "," }, lexer)
             | Some '(' ->
                 ({ Type = TokenType.LPAREN
-                   Literal = Some "(" }, currentLexer)
+                   Literal = Some "(" }, lexer)
             | Some ')' ->
                 ({ Type = TokenType.RPAREN
-                   Literal = Some ")" }, currentLexer)
+                   Literal = Some ")" }, lexer)
             | Some '{' ->
                 ({ Type = TokenType.LBRACE
-                   Literal = Some "{" }, currentLexer)
+                   Literal = Some "{" }, lexer)
             | Some '}' ->
                 ({ Type = TokenType.RBRACE
-                   Literal =  Some "}" }, currentLexer)
+                   Literal =  Some "}" }, lexer)
             | Some currentChar when Char.IsLetter(currentChar) ->
-                let (literal, activeLexer) = ReadIdentifier "" currentLexer currentLexer
+                let (literal, lexer') = ReadIdentifierRec "" lexer lexer
                 ({ Type = LookupIdentifier(literal)
-                   Literal = Some literal }, activeLexer)
+                   Literal = Some literal }, lexer')
             | Some currentChar when Char.IsNumber(currentChar) ->
-                let (literal, activeLexer) = ReadNumber "" currentLexer currentLexer
+                let (literal, lexer') = ReadNumberRec "" lexer lexer
                 ({ Type = TokenType.INT
-                   Literal = Some literal }, activeLexer )
+                   Literal = Some literal }, lexer' )
             | None ->
                 ({ Type = TokenType.EOF
-                   Literal = None }, currentLexer)
+                   Literal = None }, lexer)
             | _ ->
                 ({ Type = TokenType.ILLEGAL
-                   Literal = None }, currentLexer)
+                   Literal = None }, lexer)
                  
         let NextToken lexer =
-           let (t, activeLexer) = NextTokenEval (SkipWhitespace lexer)
-           (t , activeLexer |> ReadChar)
+           let (token, lexer') = NextToken' (SkipWhitespaceRec lexer)
+           (token , lexer' |> ReadChar)
            
-        let rec ProcessLexerToTokens accumulator (token, lexer) =
-            let accumulator' = accumulator @ [ token ]
+        let rec ConvertLexerToTokensRec accumulator (token, lexer) =
+            let accumulator' = match token with
+                                | Some t -> accumulator @ [ t ]
+                                | _ -> accumulator
             match token with
-            | { Type = TokenType.EOF; Literal = None } -> accumulator'
-            | _ -> ProcessLexerToTokens accumulator' (NextToken lexer) 
+            | Some { Type = TokenType.EOF; Literal = None } -> accumulator'
+            | _ -> let (token', lexer') = lexer |> NextToken
+                   ConvertLexerToTokensRec accumulator' (Some token', lexer')
