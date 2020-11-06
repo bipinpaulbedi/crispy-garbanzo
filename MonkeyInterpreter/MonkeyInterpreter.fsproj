@@ -17,6 +17,9 @@
         <Compile Include="ParserTests.fs" />
         <Compile Include="Repl.fs" />
         <Compile Include="Program.fs" />
+        <Compile Include="MonkeyObject.fs" />
+        <Compile Include="MonkeyObjectTests.fs" />
+        <Compile Include="MonkeyEnvironment.fs" />
     </ItemGroup>
 
     <ItemGroup>
