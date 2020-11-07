@@ -17,7 +17,7 @@ namespace MonkeyInterpreter
             | LT
             | GT
             | EQ
-            | NOTEQ
+            | NOT_EQ
             | COMMA
             | SEMICOLON
             | COLON

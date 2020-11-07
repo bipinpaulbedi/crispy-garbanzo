@@ -13,16 +13,16 @@ namespace MonkeyInterpreter
         let NewClosedEnvironment environment =
             NewEnvironment  (Some environment)
             
-        let Get name env =
+        let GetEnv name env =
             match env.Store.TryFind name with
-             | Some v -> v
+             | Some v -> Some v
              | _ -> match env.Outer with
                         | Some env' -> match env'.Store.TryFind name with
-                                            | Some v' -> v'
-                                            | _ -> Unchecked.defaultof<IObject>
-                        | _ -> Unchecked.defaultof<IObject>
+                                            | Some v' -> Some v'
+                                            | _ -> None
+                        | _ -> None
         
-        let Set name value env =
+        let SetEnv name value env =
             env.Store.Add(name, value) |> ignore
                                             
             

@@ -68,7 +68,7 @@ namespace MonkeyInterpreter
                     ({ Type = TokenType.MINUS
                        Literal = Some "-" }, lexer)
                 | Some '!' when (ReadChar lexer).Ch = Some '=' ->
-                    ({ Type = TokenType.NOTEQ
+                    ({ Type = TokenType.NOT_EQ
                        Literal = Some "!=" }, ReadChar(lexer))
                 | Some '!' ->
                     ({ Type = TokenType.BANG

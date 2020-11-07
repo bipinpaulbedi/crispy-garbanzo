@@ -99,7 +99,7 @@ namespace MonkeyInterpreter
                   { Type = TokenType.INT; Literal = Some "10"};
                   { Type = TokenType.SEMICOLON; Literal = Some ";"};
                   { Type = TokenType.INT; Literal = Some "10"};
-                  { Type = TokenType.NOTEQ; Literal = Some "!="};
+                  { Type = TokenType.NOT_EQ; Literal = Some "!="};
                   { Type = TokenType.INT; Literal = Some "9"};
                   { Type = TokenType.SEMICOLON; Literal = Some ";"};
                   { Type = TokenType.EOF; Literal = None} ]

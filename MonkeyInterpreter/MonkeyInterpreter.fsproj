@@ -15,11 +15,13 @@
         <Compile Include="LexerTests.fs" />
         <Compile Include="Parser.fs" />
         <Compile Include="ParserTests.fs" />
-        <Compile Include="Repl.fs" />
-        <Compile Include="Program.fs" />
         <Compile Include="MonkeyObject.fs" />
         <Compile Include="MonkeyObjectTests.fs" />
         <Compile Include="MonkeyEnvironment.fs" />
+        <Compile Include="BuiltIns.fs" />
+        <Compile Include="Evaluator.fs" />
+        <Compile Include="Repl.fs" />
+        <Compile Include="Program.fs" />
     </ItemGroup>
 
     <ItemGroup>

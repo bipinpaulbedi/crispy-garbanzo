@@ -53,7 +53,7 @@ namespace MonkeyInterpreter
                 member this.HashKey() = { Type = (this :> IObject).Type()
                                           Value = if this.Value then 1UL else 0UL }
                 
-        type NUll =
+        type NULL =
             interface IObject with
                 member this.Type() = ObjectType.NULL
                 member this.Inspect() = "null"
@@ -103,11 +103,11 @@ namespace MonkeyInterpreter
                 member this.Inspect() = "builtin function"
                 
         type Array =
-            { Element : IObject[] }
+            { Elements : IObject[] }
             interface IObject with
                 member this.Type() = ObjectType.ARRAY
                 member this.Inspect() =
-                    let eleStr = this.Element
+                    let eleStr = this.Elements
                                     |> Array.map (fun p -> p.ToString())
                                     |> String.concat ", "
                                         

@@ -12,7 +12,7 @@ namespace MonkeyInterpreter
             | UNKNOWN = 0
             | LOWEST = 1
             | EQUALS = 2
-            | LESSGREATER = 3
+            | LESS_GREATER = 3
             | SUM = 4
             | PRODUCT = 5
             | PREFIX = 6
@@ -22,9 +22,9 @@ namespace MonkeyInterpreter
         let LookupPrecedence =
             function
             | TokenType.EQ -> PrecedenceType.EQUALS
-            | TokenType.NOTEQ -> PrecedenceType.EQUALS
-            | TokenType.LT -> PrecedenceType.LESSGREATER
-            | TokenType.GT -> PrecedenceType.LESSGREATER
+            | TokenType.NOT_EQ -> PrecedenceType.EQUALS
+            | TokenType.LT -> PrecedenceType.LESS_GREATER
+            | TokenType.GT -> PrecedenceType.LESS_GREATER
             | TokenType.PLUS -> PrecedenceType.SUM
             | TokenType.MINUS -> PrecedenceType.SUM
             | TokenType.SLASH -> PrecedenceType.PRODUCT
@@ -286,8 +286,8 @@ namespace MonkeyInterpreter
             let ind, parser' = parser |> NextToken |> ParseExpression PrecedenceType.LOWEST
             
             let ind', parser'' = match parser' |> ExpectPeek TokenType.RBRACKET with
-                                | true, p' -> ind, p'
-                                | false, p' -> Unchecked.defaultof<Expression>, p'
+                                    | true, p' -> ind, p'
+                                    | false, p' -> Unchecked.defaultof<Expression>, p'
                 
             { Token = parser.CurrentToken
               Left = exp
@@ -341,7 +341,7 @@ namespace MonkeyInterpreter
             |> RegisterInfix TokenType.SLASH (InfixParseFn ParseInfixExpression)
             |> RegisterInfix TokenType.ASTERISK (InfixParseFn ParseInfixExpression)
             |> RegisterInfix TokenType.EQ (InfixParseFn ParseInfixExpression)
-            |> RegisterInfix TokenType.NOTEQ (InfixParseFn ParseInfixExpression)
+            |> RegisterInfix TokenType.NOT_EQ (InfixParseFn ParseInfixExpression)
             |> RegisterInfix TokenType.LT (InfixParseFn ParseInfixExpression)
             |> RegisterInfix TokenType.GT (InfixParseFn ParseInfixExpression)
             |> RegisterInfix TokenType.LPAREN (InfixParseFn ParseCallExpression)
