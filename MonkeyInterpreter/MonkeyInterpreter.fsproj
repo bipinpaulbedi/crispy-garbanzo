@@ -20,6 +20,7 @@
         <Compile Include="MonkeyEnvironment.fs" />
         <Compile Include="BuiltIns.fs" />
         <Compile Include="Evaluator.fs" />
+        <Compile Include="EvaluatorTests.fs" />
         <Compile Include="Repl.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
