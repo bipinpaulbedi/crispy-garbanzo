@@ -173,7 +173,7 @@ namespace MonkeyInterpreter
                 match (parser |> CurrentTokenIs TokenType.RBRACE || parser |> CurrentTokenIs TokenType.EOF)  with
                     | true -> accumulator', parser
                     | _ -> let nextStatement, parser' = parser |> ParseStatement
-                           ParseBlockStatementRec accumulator' (Some nextStatement) (parser' |> NextToken)
+                           ParseBlockStatementRec accumulator' (Some nextStatement) parser'
         
         let private ParseBlockStatement parser =
             let Statements, parser'' = ParseBlockStatementRec [] None (parser |> NextToken)
@@ -187,26 +187,23 @@ namespace MonkeyInterpreter
                                     | true -> parser' |> NextToken |> ParseExpression PrecedenceType.LOWEST
                                     | _ -> Unchecked.defaultof<Expression>, parser'
                     
-            let cons, parser''' = match parser'' |> ExpectPeek TokenType.RPAREN with
-                                    | true, p' ->
-                                        match p' |> ExpectPeek TokenType.LBRACE with
-                                         | true, p'' -> p'' |> ParseBlockStatement
-                                         | false, p'' -> Unchecked.defaultof<Expression>, p''
-                                    | false, p' -> Unchecked.defaultof<Expression>, p'
+            let cons, parser''' = match parser'' |> CurrentTokenIs TokenType.LBRACE with
+                                         | true -> parser'' |> ParseBlockStatement
+                                         | false -> Unchecked.defaultof<Expression>, parser''
             
             
-            let alt, parser'''' = match parser''' |> CurrentTokenIs TokenType.ELSE with
-                                    | true -> let p''' = parser''' |> NextToken
-                                              match p''' |> ExpectPeek TokenType.LBRACE with
-                                                | true, p'''' -> p'''' |> ParseBlockStatement
-                                                | false, p'''' -> Unchecked.defaultof<Expression>, p''''
-                                    | false -> Unchecked.defaultof<Expression>, parser'''
+            let alt, parser'''' = match parser''' |> PeekTokenIs TokenType.ELSE with
+                                    | true -> match parser''' |> NextToken |> ExpectPeek TokenType.LBRACE with
+                                                | true, p -> let n, p' = p |> ParseBlockStatement
+                                                             Some (n :?> BlockStatement), p'
+                                                | false, _ -> None, parser'''
+                                    | false -> None, parser'''
             
             
             { Token = parser.CurrentToken
               Condition =  con
               Consequence = cons :?> BlockStatement
-              Alternative = Some (alt :?> BlockStatement)
+              Alternative = alt
             } :> INode, parser''''
             
         let rec private ParseFunctionParametersRec accumulator param parser =
@@ -252,17 +249,17 @@ namespace MonkeyInterpreter
             
         let rec private ParseCallExpressionListRec accumulator expression endToken parser =
             let accumulator' = accumulator @ [ expression ]
-            match parser |> PeekTokenIs TokenType.COMMA with
-                | true -> let exp, parser' = parser |> NextToken |> NextToken |> ParseExpression PrecedenceType.LOWEST
+            match parser |> CurrentTokenIs TokenType.COMMA with
+                | true -> let exp, parser' = parser |> NextToken |> ParseExpression PrecedenceType.LOWEST
                           ParseCallExpressionListRec accumulator' exp endToken parser'
-                | false -> match parser |> ExpectPeek endToken with
-                                | true, parser'' -> accumulator' |> Array.ofList, parser''
-                                | false, parser'' -> Unchecked.defaultof<Expression[]>, parser''
+                | false -> match parser |> CurrentTokenIs endToken || parser |> CurrentTokenIs TokenType.SEMICOLON || parser |> CurrentTokenIs TokenType.EOF with
+                                | true -> accumulator' |> Array.ofList, parser |> NextToken
+                                | false -> [] |> Array.ofList, parser
                     
         
         let private ParseCallExpressionList endToken parser =
              match parser |> PeekTokenIs endToken with
-                | true -> Unchecked.defaultof<Expression[]>, parser |> NextToken
+                | true -> [] |> Array.ofList, parser |> NextToken
                 | false -> let exp, parser' = parser |> NextToken |> ParseExpression PrecedenceType.LOWEST
                            ParseCallExpressionListRec [] exp endToken parser'
         

@@ -261,7 +261,9 @@ namespace MonkeyInterpreter
         [<Theory>]
         [<InlineData("add();","add",0,"")>]
         [<InlineData("add(1);","add",1,"1")>]
-        [<InlineData("add(1, (2 * 3));","add",2,"1|(2*3)")>]
+        [<InlineData("add(1,2);","add",2,"1|2")>]
+        [<InlineData("add(1,2,3);","add",3,"1|2|3")>]
+        [<InlineData("add(1, 2 * 3);","add",2,"1|(2 * 3)")>]
         let ``Test Call Expression Parameter Parsing`` inp fn len exp =
             let prg, _ = NewLexer inp
                                 |> NewParser
@@ -269,7 +271,7 @@ namespace MonkeyInterpreter
             
             prg.Statements.Length |> should equal 1
             
-            ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Function |> TestIdentifier "add" |> ignore
+            ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Function |> TestIdentifier fn |> ignore
             
             ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Arguments.Length |> should equal len
             ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Arguments
