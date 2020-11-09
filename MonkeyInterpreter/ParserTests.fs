@@ -149,20 +149,11 @@ namespace MonkeyInterpreter
         [<InlineData("a * b / c", "(a*(b/c))")>]
         [<InlineData("a * (b / c)", "(a*(b/c))")>]
         [<InlineData("a + b / c", "(a+(b/c))")>]
-        //TODO Check why higher pre followed by lower pre causes issue
-        //[<InlineData("a + b * c + d / e - f", "(((a+(b*c))+(d/e))-f)")>]
-        //Alternate short term fix
-        [<InlineData("a + b * c + (d / e) - f", "(a+((b*c)+((d/e)-f)))")>]
-        //TODO Check why TB considers this as a valid single expression
-        //[<InlineData("3 + 4; (-5) * 5", "(3+4)((-5)*5)")>]
-        //Alternate short term fix
-        [<InlineData("(3 + 4) * (-5) * 5", "((3+4)*((-5)*5))")>]
+        [<InlineData("a + b * c + d / e - f", "(((a+(b*c))+(d/e))-f)")>]
+        [<InlineData("3 + 4; (-5) * 5", "(3+4)((-5)*5)")>]
         [<InlineData("5 > 4 == 3 < 4", "((5>4)==(3<4))")>]
         [<InlineData("5 < 4 != 3 > 4", "((5<4)!=(3>4))")>]
-        //TODO precedence of == infix operation causes issue
-        //[<InlineData("3 + 4 * 5 == 3 * 1 + 4 * 5", "((3+(4*5))==((3*1)+(4*5)))")>]
-        //Alternate short term fix
-        [<InlineData("(3 + 4 * 5) == (3 * 1) + 4 * 5", "((3+(4*5))==((3*1)+(4*5)))")>]
+        [<InlineData("3 + 4 * 5 == 3 * 1 + 4 * 5", "((3+(4*5))==((3*1)+(4*5)))")>]
         [<InlineData("true", "true")>]
         [<InlineData("false", "false")>]
         [<InlineData("3 > 5 == false", "((3>5)==false)")>]
@@ -174,18 +165,9 @@ namespace MonkeyInterpreter
         [<InlineData("-(5 + 5)", "(-(5+5))")>]
         [<InlineData("!(true == true)", "(!(true==true))")>]
         [<InlineData("add(a+b)", "add ((a+b))")>]
-        //TODO Same issue as above
-        //[<InlineData("a + add(b * c) + d", "((a+add((b*c)))+d)")>]
-        //Alternate short term fix
-        [<InlineData("a + (add(b * c)) + d", "(a+(add ((b*c))+d))")>]
-        //TODO Multiple compute as args and function as first class citizen not supported
-        //[<InlineData("add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))", "add(a,b,1,(2*3),(4+5),add(6,(7*8)))")>]
-        // Multiple compute and function as first class citizen not supported; Failed Alternate
-        //[<InlineData("add(a, b, 1, 2 * 3, (4 + 5), add(6, (7 * 8)))", "add (a, b, 1, (2*3), (4+5),add (6, (7*8)))")>]
-        //TODO Due to multiple issues described above
-        //[<InlineData("add(a + b + c * d / f + g)", "add((((a+b)+((c*d)/f))+g))")>]
-        //Alternate short term fix
-        [<InlineData("add(a + b + (c * (d / f)) + g)", "add ((a+(b+((c*(d/f))+g))))")>]
+        [<InlineData("a + add(b * c) + d", "((a+add((b*c)))+d)")>]
+        [<InlineData("add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))", "add(a,b,1,(2*3),(4+5),add(6,(7*8)))")>]
+        [<InlineData("add(a + b + c * d / f + g)", "add((((a+b)+((c*d)/f))+g))")>]
         let ``Test Operator Precedence Parsing`` inp exp =
             let prg, _ = NewLexer inp
                                 |> NewParser
@@ -218,8 +200,7 @@ namespace MonkeyInterpreter
             (((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> IfExpression).Consequence.Statements.[0] :?> ExpressionStatement).Expression |> TestLiteralExpression "x" |> ignore
             
         [<Theory>]
-        //TODO Forced; at end-of cons if alt available
-        [<InlineData("if (x < y) { x; } else { y }")>]
+        [<InlineData("if (x < y) { x } else { y }")>]
         let ``Test If Else Expression`` inp =
             let prg, _ = NewLexer inp
                                 |> NewParser
@@ -265,8 +246,7 @@ namespace MonkeyInterpreter
                         |> should equal exp |> ignore
         
         [<Theory>]
-        //TODO Be carefull about pre processed computation
-        [<InlineData("add(1, (2 * 3));")>]
+        [<InlineData("add(1, 2 * 3);")>]
         let ``Test Call Expression Parsing`` inp =
             let prg, _ = NewLexer inp
                                 |> NewParser
@@ -291,10 +271,8 @@ namespace MonkeyInterpreter
             
             ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Function |> TestIdentifier "add" |> ignore
             
-            match len with
-                | 0 -> 1 |> should equal 1 //TODO Issue with zero argument collection
-                | _ -> ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Arguments.Length |> should equal len
-                       ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Arguments
+            ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Arguments.Length |> should equal len
+            ((prg.Statements.[0] :?> ExpressionStatement).Expression.Value :?> CallExpression).Arguments
                         |> Array.map( fun i -> i.ToString())
                         |> String.concat "|"
                         |> should equal exp |> ignore

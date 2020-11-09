@@ -82,11 +82,11 @@ namespace MonkeyInterpreter
         
         let rec private ParseInfExpressionRec exp precedence parser =
                     match parser |> PeekTokenIs TokenType.SEMICOLON || precedence >= (parser |> PeekPrecedence) with
-                    | true -> exp, parser
+                    | true -> exp, parser |> NextToken
                     | _ ->  match parser.InfixParseFns.TryFind(parser.CurrentToken.Type) with
                                     | Some inf -> let exp', parser' = inf.Invoke (exp, parser |> NextToken)
                                                   parser' |> ParseInfExpressionRec exp' precedence
-                                    | _ -> exp, parser
+                                    | _ -> exp, parser |> NextToken
 
         let private ParseExpression precedence parser =
             match parser.PrefixParseFns.TryFind(parser.CurrentToken.Type) with
