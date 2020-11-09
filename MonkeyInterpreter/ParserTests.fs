@@ -45,7 +45,7 @@ namespace MonkeyInterpreter
             (Some (inp :?> PrefixExpression).Right) |> TestLiteralExpression right
             
         let TestInfixExpressionStatement (left, operator,right) (inp:INode) =
-            inp.ToString() |> should equal (String.Format("({0}{1}{2})",left.ToString().ToLower(), operator, right.ToString().ToLower()))
+            inp.ToString() |> should equal (String.Format("({0} {1} {2})",left.ToString().ToLower(), operator, right.ToString().ToLower()))
             (inp :?> InfixExpression).Operator |> should equal operator
             (Some (inp :?> InfixExpression).Right) |> TestLiteralExpression right
             (Some (inp :?> InfixExpression).Left) |> TestLiteralExpression left
