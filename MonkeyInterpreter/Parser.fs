@@ -3,7 +3,6 @@ namespace MonkeyInterpreter
 
         open Lexer
         open System
-        open System.Collections.Generic
         open Token
         open AST
 
@@ -81,12 +80,14 @@ namespace MonkeyInterpreter
 
         
         let rec private ParseInfExpressionRec exp precedence parser =
-                    match parser |> PeekTokenIs TokenType.SEMICOLON || precedence >= (parser |> PeekPrecedence) with
+                    match parser |> PeekTokenIs TokenType.SEMICOLON with
                     | true -> exp, parser |> NextToken
-                    | _ ->  match parser.InfixParseFns.TryFind(parser.PeekToken.Type) with
-                                    | Some inf -> let exp', parser' = inf.Invoke (exp, parser |> NextToken)
-                                                  parser' |> ParseInfExpressionRec exp' precedence
-                                    | _ -> exp, parser |> NextToken
+                    | false -> match precedence > (parser |> PeekPrecedence) with
+                                | true -> exp, parser |> NextToken
+                                | false -> match parser.InfixParseFns.TryFind(parser.PeekToken.Type) with
+                                                | Some inf -> let exp', parser' = inf.Invoke (exp, parser |> NextToken)
+                                                              parser' |> ParseInfExpressionRec exp' precedence
+                                                | _ -> exp, parser |> NextToken
 
         let private ParseExpression precedence parser =
             match parser.PrefixParseFns.TryFind(parser.CurrentToken.Type) with
@@ -118,12 +119,13 @@ namespace MonkeyInterpreter
             let expression, parser' = parser
                                         |> NextToken
                                         |> ParseExpression PrecedenceType.LOWEST
-            
-            let valid, parser'' = parser' |> ExpectPeek TokenType.RPAREN
-            
-            match valid with
-            | true -> expression, parser''
-            | false -> Unchecked.defaultof<Expression>, parser''
+                                        
+            match parser' |> CurrentTokenIs TokenType.EOF with
+                | true -> expression, parser'
+                | false -> let valid, parser'' = parser' |> ExpectPeek TokenType.RPAREN
+                           match valid with
+                            | true -> expression, parser''
+                            | false -> Unchecked.defaultof<Expression>, parser''
             
         let private ParseLetStatement parser =
             let valid, parser' = parser |> ExpectPeek TokenType.IDENT
