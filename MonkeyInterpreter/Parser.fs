@@ -191,7 +191,9 @@ namespace MonkeyInterpreter
                     
             let cons, parser''' = match parser'' |> CurrentTokenIs TokenType.LBRACE with
                                          | true -> parser'' |> ParseBlockStatement
-                                         | false -> Unchecked.defaultof<Expression>, parser''
+                                         | false -> match parser'' |> PeekTokenIs TokenType.LBRACE with
+                                                        | true -> parser'' |> NextToken |> ParseBlockStatement
+                                                        | false -> Unchecked.defaultof<Expression>, parser''
             
             
             let alt, parser'''' = match parser''' |> PeekTokenIs TokenType.ELSE with

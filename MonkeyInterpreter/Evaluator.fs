@@ -56,7 +56,7 @@ namespace MonkeyInterpreter
                 | :? ReturnStatement as rs -> let v = EvalRec env map (rs.ReturnValue |> Option.defaultValue Unchecked.defaultof<INode>) 
                                               [] @ [ { ReturnValue.Value = v.[0] } :> IObject ]
                 | :? LetStatement as ls -> let v = EvalRec env map (ls.Value |> Option.defaultValue Unchecked.defaultof<INode>)
-                                           SetEnv ls.Name.Value v.[0] |> ignore
+                                           SetEnv ls.Name.Value v.[0] env |> ignore
                                            [] @ [ MonkeyNull ]
                 | :? IntegerLiteral as i -> [] @ [ { Integer.Value = i.IntValue } :> IObject ]
                 | :? StringLiteral as sl -> [] @ [ { String.Value = sl.StringValue } :> IObject ]
@@ -89,18 +89,24 @@ namespace MonkeyInterpreter
         
         let private EvalProgram env map (node:EvalParameters) =
             match node with
-            | EvalParameters.Program p -> p.Statements
-                                            |> Array.map (fun s -> EvalRec env map s)
-                                            |> Array.filter(fun ele -> ele.[0] |> IsErrorOrReturnObject)
-                                            |> Array.head
+            | EvalParameters.Program p -> let arr =  p.Statements
+                                                        |> Array.map (fun s -> EvalRec env map s)
+                                                      
+                                          let arrFiltered = arr |> Array.filter(fun ele -> ele.[0] |> IsErrorOrReturnObject)
+                                          match arrFiltered.Length with
+                                                | 0 -> arr |> Array.last 
+                                                | _ -> arrFiltered |> Array.head
             | _ -> [] @ [ MonkeyNull ]
         
         let private EvalBlockStatement env map (node:EvalParameters) =
              match node with
-                | EvalParameters.BlockStatement bs -> bs.Statements
-                                                        |> Array.map (fun s -> EvalRec env map s)
-                                                        |> Array.filter(fun ele -> ele.[0] |> IsErrorOrReturnObject)
-                                                        |> Array.head
+                | EvalParameters.BlockStatement bs -> let arr =  bs.Statements
+                                                                    |> Array.map (fun s -> EvalRec env map s)
+                                                      
+                                                      let arrFiltered = arr |> Array.filter(fun ele -> ele.[0] |> IsErrorOrReturnObject)
+                                                      match arrFiltered.Length with
+                                                        | 0 -> arr |> Array.last 
+                                                        | _ -> arrFiltered |> Array.head
                 | _ -> [] @ [ MonkeyNull ]
         
         let private EvalBangOperatorExpression (right:IObject) =
@@ -109,7 +115,7 @@ namespace MonkeyInterpreter
                 | :? MonkeyObject.Boolean as b -> match b.Value with
                                                     | true -> [] @ [ MonkeyFalse ]
                                                     | false -> [] @ [ MonkeyTrue ]
-                | _ -> [] @ [ MonkeyNull ]
+                | _ -> [] @ [ MonkeyFalse ]
         
         let private EvalMinusPrefixOperatorExpression (right:IObject) =
             match right with
