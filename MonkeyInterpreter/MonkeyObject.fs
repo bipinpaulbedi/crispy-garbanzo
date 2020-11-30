@@ -1,5 +1,7 @@
 namespace MonkeyInterpreter
 
+    open System.Collections.Generic
+
     module MonkeyObject =
         
         open System
@@ -28,7 +30,7 @@ namespace MonkeyInterpreter
             abstract member Type : unit -> ObjectType
             abstract member Inspect : unit -> string
         and MonkeyEnvironment =
-            { Store : Map<string, IObject>
+            { Store : Dictionary<string, IObject>
               Outer : Option<MonkeyEnvironment> }
             
         type BuiltInFunction = delegate of list<IObject> -> IObject
