@@ -43,6 +43,14 @@ namespace MonkeyInterpreter
                     | num when Char.IsNumber(num) -> ReadNumberRec (accumulator.ToString() + num.ToString()) (ReadChar(lexer')) lexer'
                     | _ -> (accumulator, lexer)
                 | _ -> (accumulator, lexer)
+            
+            let rec private ReadStringRec accumulator lexer' lexer =
+                match lexer'.Ch with
+                | Some ch ->
+                    match ch with
+                    | '"' -> (accumulator, lexer)
+                    | ch -> ReadStringRec (accumulator.ToString() + ch.ToString()) (ReadChar(lexer')) lexer'
+                | _ -> (accumulator, lexer)
                 
             let rec private ReadIdentifierRec accumulator lexer' lexer =
                 match lexer'.Ch with
@@ -97,6 +105,10 @@ namespace MonkeyInterpreter
                 | Some ')' ->
                     ({ Type = TokenType.RPAREN
                        Literal = Some ")" }, lexer)
+                | Some '"' ->
+                    let (literal, lexer') = ReadStringRec "" (ReadChar(lexer)) lexer
+                    ({ Type = TokenType.STRING
+                       Literal = Some literal }, ReadChar(lexer'))
                 | Some '{' ->
                     ({ Type = TokenType.LBRACE
                        Literal = Some "{" }, lexer)

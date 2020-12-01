@@ -1,5 +1,7 @@
 namespace MonkeyInterpreter
 
+    open System
+
     module Evaluator =
         
         open MonkeyObject
