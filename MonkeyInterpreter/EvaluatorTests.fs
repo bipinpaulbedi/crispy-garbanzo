@@ -250,7 +250,7 @@ namespace MonkeyInterpreter
         
         [<Theory>]
         [<InlineData("[1, 4, 6]")>]
-        [<InlineData("[1, 2 * 2, 3 + 3]")>]
+        [<InlineData("[1, 4, 3 + 3]")>]
         let ``Test Array Literals`` inp =
             let e = TestEval(inp)
             match e with

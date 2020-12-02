@@ -115,6 +115,12 @@ namespace MonkeyInterpreter
                 | Some '}' ->
                     ({ Type = TokenType.RBRACE
                        Literal =  Some "}" }, lexer)
+                | Some '[' ->
+                    ({ Type = TokenType.LBRACKET
+                       Literal = Some "[" }, lexer)
+                | Some ']' ->
+                    ({ Type = TokenType.RBRACKET
+                       Literal =  Some "]" }, lexer)
                 | Some currentChar when Char.IsLetter(currentChar) ->
                     let (literal, lexer') = ReadIdentifierRec "" lexer lexer
                     ({ Type = LookupIdentifier(literal)
