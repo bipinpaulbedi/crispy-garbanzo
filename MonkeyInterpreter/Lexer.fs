@@ -96,6 +96,9 @@ namespace MonkeyInterpreter
                 | Some ';' ->
                     ({ Type = TokenType.SEMICOLON
                        Literal = Some ";" }, lexer)
+                | Some ':' ->
+                    ({ Type = TokenType.COLON
+                       Literal = Some ":" }, lexer)
                 | Some ',' ->
                     ({ Type = TokenType.COMMA
                        Literal = Some "," }, lexer)

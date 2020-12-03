@@ -303,15 +303,11 @@ namespace MonkeyInterpreter
                 | true -> match parser |> ExpectPeek TokenType.RBRACE with
                             | true, p' -> acc', p'
                             | false, p' -> Unchecked.defaultof<(Expression * Expression) list>, p'
-                | false -> let exp, parser' = parser |> NextToken |> ParseExpression PrecedenceType.LOWEST
-                           match parser' |> ExpectPeek TokenType.COLON with
-                                | true, p'' -> let exp', parser'' = parser' |> NextToken |> ParseExpression PrecedenceType.LOWEST
-                                               match parser'' |> PeekTokenIs TokenType.RBRACE with
-                                                    | true -> match parser'' |> ExpectPeek TokenType.COMMA with
-                                                                | true, p''' -> ParseHashLiteralRec acc' (Some (exp, exp')) p'''
-                                                                | false, p''' -> Unchecked.defaultof<(Expression * Expression) list>, p'''
-                                                    | false -> Unchecked.defaultof<(Expression * Expression) list>, p''   
-                                | false, p'' -> Unchecked.defaultof<(Expression * Expression) list>, p''              
+                | false -> let exp', parser' = parser |> NextToken |> ParseExpression PrecedenceType.LOWEST
+                           match parser' |> CurrentTokenIs TokenType.COLON with
+                                | true -> let exp'', parser'' = parser' |> NextToken |> ParseExpression PrecedenceType.LOWEST
+                                          ParseHashLiteralRec acc' (Some (exp', exp'')) parser''   
+                                | false -> Unchecked.defaultof<(Expression * Expression) list>, parser'              
         
         let private ParseHashLiteral parser =
             let pairs, parser' = ParseHashLiteralRec [] None parser
