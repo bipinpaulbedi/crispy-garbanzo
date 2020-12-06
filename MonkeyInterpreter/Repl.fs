@@ -16,5 +16,5 @@ namespace MonkeyInterpreter
                                                     |> NewParser
                                                     |> ParseProgram
                           let e = Eval env (program :> INode)
-                          e.Inspect() |> ignore  
+                          Console.WriteLine(e.Inspect())  
              start(env)
